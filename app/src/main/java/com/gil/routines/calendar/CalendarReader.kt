@@ -22,7 +22,8 @@ data class BusyEvent(val id: Long, val title: String, val begin: Long, val end: 
  * כל חשבון שמסונכרן למכשיר — Outlook, Exchange, Google — נגיש דרך אותו ספק,
  * ולכן אין צורך ב-API של מיקרוסופט ולא בחיבור רשת.
  *
- * נספרים רק אירועים שמסומנים "בעסוק", שאינם יום שלם, שלא בוטלו, ושלא נדחו על ידי המשתמש.
+ * נספרים אירועים שאינם יום שלם, שלא בוטלו, ושלא נדחו על ידי המשתמש.
+ * הסינון האמיתי נעשה במילות המפתח ובאישור הידני, ולא בסטטוס הזמינות.
  */
 object CalendarReader {
 
@@ -51,7 +52,7 @@ object CalendarReader {
         }.getOrNull().orEmpty()
     }
 
-    /** כל האירועים ה"עסוקים" בטווח נתון, ממוינים לפי זמן התחלה */
+    /** כל האירועים הרלוונטיים בטווח נתון, ממוינים לפי זמן התחלה */
     fun busyEvents(ctx: Context, calendarIds: Set<Long>, from: Long, to: Long): List<BusyEvent> {
         if (!hasPermission(ctx)) return emptyList()
 
@@ -67,9 +68,10 @@ object CalendarReader {
             CalendarContract.Instances.EVENT_ID
         )
 
+        // אין סינון לפי "עסוק": מילות המפתח והאישור הידני מסננים טוב יותר,
+        // וסימון "מותנה" על ישיבה אמיתית היה גורם לה ליפול.
         val where = buildString {
             append("${CalendarContract.Instances.ALL_DAY}=0")
-            append(" AND ${CalendarContract.Instances.AVAILABILITY}=${CalendarContract.Events.AVAILABILITY_BUSY}")
             append(" AND ${CalendarContract.Instances.STATUS}!=${CalendarContract.Events.STATUS_CANCELED}")
             append(" AND ${CalendarContract.Instances.SELF_ATTENDEE_STATUS}!=${CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED}")
         }
@@ -124,7 +126,7 @@ object CalendarReader {
     fun nextMatching(ctx: Context, t: CalendarTrigger, now: Long = System.currentTimeMillis()): BusyEvent? =
         matching(ctx, t, now, now + 7 * 24 * 3_600_000L).firstOrNull { it.begin > now }
 
-    /** כל האירועים העסוקים הקרובים — גם מי שלא עונה לכללים, לצורך בחירה ידנית */
+    /** כל האירועים הקרובים — גם מי שלא עונה לכללים, לצורך בחירה ידנית */
     fun upcomingAll(ctx: Context, t: CalendarTrigger, now: Long = System.currentTimeMillis()): List<BusyEvent> =
         busyEvents(ctx, t.calendarIds, now, now + 7 * 24 * 3_600_000L).take(40)
 

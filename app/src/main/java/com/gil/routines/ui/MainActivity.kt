@@ -462,7 +462,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     } else {
                         val cals = remember { CalendarReader.calendars(ctx) }
                         Text(
-                            "נספרים רק אירועים שמסומנים \"בעסוק\", שאינם יום שלם, ושלא דחית.",
+                            "נספרים אירועים שאינם יום שלם ושלא דחית. הסינון נעשה לפי המילים שלמטה ולפי הבחירה הידנית.",
                             fontSize = 11.sp, color = Lux.Faint, lineHeight = 17.sp
                         )
 
