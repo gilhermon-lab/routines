@@ -43,6 +43,7 @@ object ModeStore {
                 handling = CallHandling.SILENCE,
                 message = "אני ישן כרגע. אם זה דחוף — חייג שוב פעמיים ואתעורר.",
                 allowContacts = true,
+                contactPolicy = ContactPolicy.ALL,
                 smsCooldownHours = 6,
                 breakthrough = Breakthrough(true, 3, 10)
             )
@@ -55,6 +56,7 @@ object ModeStore {
                 handling = CallHandling.REJECT,
                 message = "אני בעבודה, אחזור אליך אחרי 17:00.",
                 allowContacts = true,
+                contactPolicy = ContactPolicy.ALL,
                 smsCooldownHours = 4,
                 breakthrough = Breakthrough(true, 3, 15)
             )
@@ -67,6 +69,7 @@ object ModeStore {
                 handling = CallHandling.REJECT,
                 message = "אני בישיבה כרגע ואחזור אליך בהקדם. אם דחוף — חייג שוב.",
                 allowContacts = false,
+                contactPolicy = ContactPolicy.NONE,
                 smsCooldownHours = 2,
                 breakthrough = Breakthrough(true, 2, 5)
             )
@@ -79,6 +82,7 @@ object ModeStore {
                 handling = CallHandling.REJECT,
                 message = "אני נוהג כרגע. אחזור אליך כשאעצור.",
                 allowContacts = false,
+                contactPolicy = ContactPolicy.NONE,
                 smsCooldownHours = 1,
                 breakthrough = Breakthrough(false, 3, 10)
             )
@@ -92,6 +96,7 @@ object ModeStore {
                 sendSms = false,
                 message = "בבלוק ריכוז. אחזור אליך אחר כך.",
                 allowContacts = false,
+                contactPolicy = ContactPolicy.NONE,
                 smsCooldownHours = 3,
                 breakthrough = Breakthrough(true, 4, 20)
             )

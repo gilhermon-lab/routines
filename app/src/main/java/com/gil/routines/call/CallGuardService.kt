@@ -11,6 +11,8 @@ import android.util.Log
 import androidx.core.content.ContextCompat
 import com.gil.routines.data.Actions
 import com.gil.routines.data.CallHandling
+import com.gil.routines.data.ContactPolicy
+import com.gil.routines.data.normalizeNumber
 import com.gil.routines.data.Mode
 import com.gil.routines.engine.RoutineEngine
 
@@ -41,9 +43,20 @@ class CallGuardService : CallScreeningService() {
             respondAllow(details); return
         }
 
-        // אנשי קשר עוברים, אם המצב מתיר
-        if (mode.call.allowContacts && isContact(number)) {
-            log(number, mode.name, "צלצל — איש קשר", false); respondAllow(details); return
+        // מי מורשה לצלצל למרות שהמצב פעיל
+        when (mode.call.contactPolicy) {
+            ContactPolicy.ALL -> if (isContact(number)) {
+                log(number, mode.name, "צלצל — איש קשר", false); respondAllow(details); return
+            }
+            ContactPolicy.LIST -> {
+                val key = normalizeNumber(number)
+                val hit = mode.call.allowed.firstOrNull { it.key == key && it.key.isNotBlank() }
+                if (hit != null) {
+                    log(number, mode.name, "צלצל — ${hit.name} ברשימת ההיתר", false)
+                    respondAllow(details); return
+                }
+            }
+            ContactPolicy.NONE -> Unit
         }
 
         // פריצה בחיוג חוזר

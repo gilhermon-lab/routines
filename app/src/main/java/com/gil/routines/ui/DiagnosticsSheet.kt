@@ -63,7 +63,7 @@ fun DiagnosticsSheet(onDismiss: () -> Unit) {
         ),
         Check(
             "הרשאת אנשי קשר", granted(Manifest.permission.READ_CONTACTS),
-            "בלעדיה כל מספר ייחשב לא מוכר, גם אנשי קשר."
+            "בלעדיה לא ניתן לזהות אנשי קשר ולא לבחור אותם לרשימת ההיתר."
         ),
         Check(
             "יש מצב פעיל עם סינון שיחות", guard != null,

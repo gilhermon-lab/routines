@@ -6,6 +6,20 @@ import org.json.JSONObject
 /** איך מטפלים בשיחה נכנסת כשהמצב פעיל */
 enum class CallHandling { REJECT, SILENCE }
 
+/** מי רשאי לצלצל למרות שהמצב פעיל */
+enum class ContactPolicy { ALL, LIST, NONE }
+
+/** איש קשר ברשימת ההיתר. השם נשמר לתצוגה בלבד; ההשוואה על המספר. */
+data class AllowedContact(val name: String, val number: String) {
+    /** משווים לפי הספרות האחרונות — מספרים מגיעים בפורמטים שונים */
+    val key: String get() = normalizeNumber(number)
+}
+
+fun normalizeNumber(raw: String): String {
+    val digits = raw.filter { it.isDigit() }
+    return if (digits.length > 9) digits.takeLast(9) else digits
+}
+
 /**
  * פריצה בחיוג חוזר: אחרי [attempts] חיוגים מאותו מספר בתוך [windowMinutes] דקות,
  * ההשתקה מתבטלת והטלפון מצלצל כרגיל.
@@ -20,7 +34,9 @@ data class CallConfig(
     val handling: CallHandling = CallHandling.REJECT,
     val sendSms: Boolean = true,
     val message: String = "לא זמין כרגע, אחזור אליך בהקדם.",
-    val allowContacts: Boolean = true,
+    val allowContacts: Boolean = true,          // נשמר לתאימות עם נתונים ישנים
+    val contactPolicy: ContactPolicy = ContactPolicy.ALL,
+    val allowed: List<AllowedContact> = emptyList(),
     val smsCooldownHours: Int = 4,
     val breakthrough: Breakthrough = Breakthrough()
 )
@@ -92,6 +108,12 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
         put("sendSms", call.sendSms)
         put("message", call.message)
         put("allowContacts", call.allowContacts)
+        put("contactPolicy", call.contactPolicy.name)
+        put("allowed", JSONArray().apply {
+            call.allowed.forEach { c ->
+                put(JSONObject().apply { put("n", c.name); put("p", c.number) })
+            }
+        })
         put("cooldown", call.smsCooldownHours)
         put("btEnabled", call.breakthrough.enabled)
         put("btAttempts", call.breakthrough.attempts)
@@ -117,6 +139,18 @@ fun modeFromJson(o: JSONObject): Mode {
             sendSms = c.optBoolean("sendSms", true),
             message = c.optString("message", ""),
             allowContacts = c.optBoolean("allowContacts", true),
+            contactPolicy = runCatching {
+                ContactPolicy.valueOf(c.optString("contactPolicy", ""))
+            }.getOrElse {
+                // מיגרציה מהמתג הישן
+                if (c.optBoolean("allowContacts", true)) ContactPolicy.ALL else ContactPolicy.NONE
+            },
+            allowed = (c.optJSONArray("allowed") ?: JSONArray()).let { arr ->
+                (0 until arr.length()).map {
+                    val o = arr.getJSONObject(it)
+                    AllowedContact(o.optString("n"), o.optString("p"))
+                }
+            },
             smsCooldownHours = c.optInt("cooldown", 4),
             breakthrough = Breakthrough(
                 enabled = c.optBoolean("btEnabled", true),

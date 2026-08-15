@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.PhoneCallback
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.MonitorHeart
@@ -354,6 +355,7 @@ fun ModeRow(mode: Mode, live: Boolean, onToggle: () -> Unit, onOpen: () -> Unit)
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
+    val ctx = LocalContext.current
     // טיוטה מקומית: כל עריכה נוגעת בה בלבד, ורק "שמירה" מחילה אותה על המצב האמיתי.
     // זה גם מה שמנע קודם מהמסך הראשי להציג ערכים ישנים.
     var draft by remember(mode.id) { mutableStateOf(mode) }
@@ -480,8 +482,62 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         )
                     }
 
-                    ToggleRow("לתת לאנשי קשר לצלצל", draft.call.allowContacts) {
-                        draft = draft.copy(call = draft.call.copy(allowContacts = it))
+                    SectionHeader(Icons.Outlined.PersonAdd, "מי בכל זאת יצלצל", top = 14)
+                    SegmentedRow(
+                        listOf(
+                            "כל אנשי הקשר" to ContactPolicy.ALL,
+                            "רשימה נבחרת" to ContactPolicy.LIST,
+                            "אף אחד" to ContactPolicy.NONE
+                        ),
+                        draft.call.contactPolicy, color
+                    ) { draft = draft.copy(call = draft.call.copy(contactPolicy = it)) }
+
+                    if (draft.call.contactPolicy == ContactPolicy.LIST) {
+                        val pickLauncher = rememberLauncherForActivityResult(
+                            ActivityResultContracts.StartActivityForResult()
+                        ) { res ->
+                            ContactPicker.read(ctx, res.data?.data)?.let { picked ->
+                                if (draft.call.allowed.none { it.key == picked.key }) {
+                                    draft = draft.copy(
+                                        call = draft.call.copy(allowed = draft.call.allowed + picked)
+                                    )
+                                }
+                            }
+                        }
+
+                        draft.call.allowed.forEach { c ->
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .background(Lux.Bg, RoundedCornerShape(12.dp))
+                                    .border(1.dp, Lux.Line, RoundedCornerShape(12.dp))
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(c.name, fontSize = 14.sp, color = Lux.Text)
+                                    Text(c.number, fontSize = 11.sp, color = Lux.Faint)
+                                }
+                                TextButton(onClick = {
+                                    draft = draft.copy(
+                                        call = draft.call.copy(allowed = draft.call.allowed - c)
+                                    )
+                                }) { Text("הסרה", color = Lux.Faint, fontSize = 12.sp) }
+                            }
+                        }
+
+                        OutlinedButton(
+                            onClick = { pickLauncher.launch(ContactPicker.intent()) },
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Brass)
+                        ) { Text("הוספת איש קשר", fontSize = 13.sp) }
+
+                        if (draft.call.allowed.isEmpty()) {
+                            Text(
+                                "הרשימה ריקה — כרגע אף אחד לא יעבור.",
+                                fontSize = 11.sp, color = Lux.Brass
+                            )
+                        }
                     }
 
                     SectionHeader(Icons.Outlined.NotificationsActive, "פריצה בחיוג חוזר", top = 14)
@@ -509,7 +565,14 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                 append("שיחה ממספר לא מוכר ")
                                 append(if (draft.call.handling == CallHandling.SILENCE) "תושתק בשקט" else "תידחה")
                                 append(if (draft.call.sendSms) ", ותישלח ההודעה שלמעלה." else ", בלי הודעה.")
-                                if (draft.call.allowContacts) append(" אנשי קשר יצלצלו כרגיל.")
+                                when (draft.call.contactPolicy) {
+                                    ContactPolicy.ALL -> append(" כל אנשי הקשר יצלצלו כרגיל.")
+                                    ContactPolicy.LIST -> append(
+                                        if (draft.call.allowed.isEmpty()) " אף אחד לא ברשימת ההיתר."
+                                        else " יעברו: " + draft.call.allowed.joinToString(", ") { it.name } + "."
+                                    )
+                                    ContactPolicy.NONE -> append(" גם אנשי קשר ייחסמו.")
+                                }
                                 if (draft.call.breakthrough.enabled) {
                                     append(" ${draft.call.breakthrough.attempts} חיוגים תוך ")
                                     append("${draft.call.breakthrough.windowMinutes} דקות יפרצו את ההשתקה.")
