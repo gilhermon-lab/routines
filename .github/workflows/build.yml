@@ -1,0 +1,50 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.9'
+
+      # בלי wrapper — קוראים ל-gradle ישירות, כך אין צורך ב-gradle-wrapper.jar במאגר
+      - name: Build debug APK
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - name: Rename
+        run: cp app/build/outputs/apk/debug/app-debug.apk routines.apk
+
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "שגרות — בילד אחרון"
+          files: routines.apk
+          make_latest: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: routines-apk
+          path: routines.apk
