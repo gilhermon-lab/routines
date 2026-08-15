@@ -24,6 +24,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.gil.routines.call.CallLogStore
 import com.gil.routines.call.SmsSender
 import com.gil.routines.data.Actions
 import com.gil.routines.data.ModeStore
@@ -130,6 +131,13 @@ fun DiagnosticsSheet(onDismiss: () -> Unit) {
                         fontSize = 12.sp, color = Lux.Muted)
                     Text("הפעלה אחרונה: ${ModeApplier.lastTrace(ctx)}",
                         fontSize = 12.sp, color = Lux.Muted, lineHeight = 18.sp)
+                    Text(
+                        "שיחות שהשירות ראה: ${CallLogStore.all(ctx).size}" +
+                            if (CallLogStore.all(ctx).isEmpty())
+                                " — אם זה 0 אחרי שיחת בדיקה, אנדרואיד לא מפנה אלינו שיחות בכלל."
+                            else "",
+                        fontSize = 12.sp, color = Lux.Muted, lineHeight = 18.sp
+                    )
                 }
             }
 

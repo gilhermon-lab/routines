@@ -21,16 +21,25 @@ import com.gil.routines.engine.RoutineEngine
 class CallGuardService : CallScreeningService() {
 
     override fun onScreenCall(details: Call.Details) {
-        // רק שיחות נכנסות. שיחות יוצאות עוברות דרך אותו callback בחלק מהמכשירים.
-        if (details.callDirection != Call.Details.DIRECTION_INCOMING) {
+        val number = details.handle?.schemeSpecificPart.orEmpty()
+
+        // חלק מהמכשירים מדווחים DIRECTION_UNKNOWN בזמן הסינון, לכן פוסלים
+        // רק שיחה יוצאת ודאית ולא כל מה שאינו נכנס ודאי.
+        if (details.callDirection == Call.Details.DIRECTION_OUTGOING) {
             respondAllow(details); return
         }
 
         val mode = RoutineEngine.activeModes(this).firstOrNull { it.actions.contains(Actions.CALL_GUARD) }
-        if (mode == null) { respondAllow(details); return }
+        if (mode == null) {
+            // נרשם בכל זאת — כך היומן מוכיח שהשירות בכלל נקרא
+            log(number.ifBlank { "מספר חסוי" }, "—", "צלצל — אין מצב פעיל עם סינון", false)
+            respondAllow(details); return
+        }
 
-        val number = details.handle?.schemeSpecificPart.orEmpty()
-        if (number.isBlank()) { respondAllow(details); return }   // מספר חסוי — לא מנסים לחכם
+        if (number.isBlank()) {
+            log("מספר חסוי", mode.name, "צלצל — אין מספר לזיהוי", false)
+            respondAllow(details); return
+        }
 
         // אנשי קשר עוברים, אם המצב מתיר
         if (mode.call.allowContacts && isContact(number)) {
