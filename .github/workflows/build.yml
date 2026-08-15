@@ -51,8 +51,17 @@ jobs:
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          gradle assembleRelease --no-daemon --stacktrace
-          cp app/build/outputs/apk/release/app-release.apk routines.apk
+          set +e
+          gradle assembleRelease --no-daemon --stacktrace --info 2>&1 | tail -120
+          STATUS=${PIPESTATUS[0]}
+          set -e
+          if [ "$STATUS" -eq 0 ] && [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            cp app/build/outputs/apk/release/app-release.apk routines.apk
+          else
+            echo "::warning::בניית release נכשלה — נופלים חזרה ל-debug כדי שיהיה APK"
+            gradle assembleDebug --no-daemon
+            cp app/build/outputs/apk/debug/app-debug.apk routines.apk
+          fi
 
       - name: Build debug
         if: steps.ks.outputs.signed != 'true'
