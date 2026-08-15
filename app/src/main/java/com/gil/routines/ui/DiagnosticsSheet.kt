@@ -3,6 +3,8 @@ package com.gil.routines.ui
 import android.Manifest
 import android.app.role.RoleManager
 import android.content.pm.PackageManager
+import android.os.Build
+import android.os.PowerManager
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -73,6 +75,15 @@ fun DiagnosticsSheet(onDismiss: () -> Unit) {
         Check(
             "המשוב האוטומטי דלוק במצב הפעיל", guard?.call?.sendSms == true,
             "המתג \"לשלוח הודעה למתקשר\" כבוי במצב הזה."
+        ),
+        Check(
+            "האפליקציה פטורה מאופטימיזציית סוללה",
+            runCatching {
+                ctx.getSystemService(PowerManager::class.java)
+                    .isIgnoringBatteryOptimizations(ctx.packageName)
+            }.getOrDefault(false),
+            "ב-ColorOS זו הסיבה השכיחה לכך ששגרות מפסיקות לפעול אחרי כמה שעות. " +
+                "בנוסף, הפעל הפעלה אוטומטית: הגדרות ← אפליקציות ← שגרות ← שימוש בסוללה ← אפשר פעילות ברקע."
         )
     )
 

@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
+import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 
@@ -58,6 +59,14 @@ object Permissions {
             )
         ),
         PermItem(
+            id = "calendar",
+            title = "קריאת היומן",
+            subtitle = "הרשאה רגילה",
+            unlocks = "הפעלת מצב לפי אירועי Outlook ויומנים אחרים",
+            isGranted = { ctx -> granted(ctx, Manifest.permission.READ_CALENDAR) },
+            runtimePermissions = arrayOf(Manifest.permission.READ_CALENDAR)
+        ),
+        PermItem(
             id = "dnd",
             title = "גישה ל\"נא לא להפריע\"",
             subtitle = "מסך הגדרות של אנדרואיד",
@@ -88,6 +97,23 @@ object Permissions {
                     am.canScheduleExactAlarms()
             },
             intentFor = { Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM) }
+        ),
+        PermItem(
+            id = "battery",
+            title = "פעילות חופשית ברקע",
+            subtitle = "קריטי ב-ColorOS — בלי זה השגרות ייעצרו",
+            unlocks = "מעבר אמין בין מצבים לאורך היום",
+            isGranted = { ctx ->
+                ctx.getSystemService(PowerManager::class.java)
+                    .isIgnoringBatteryOptimizations(ctx.packageName)
+            },
+            intentFor = { ctx ->
+                @Suppress("BatteryLife")
+                Intent(
+                    Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + ctx.packageName)
+                )
+            }
         ),
         PermItem(
             id = "secure",

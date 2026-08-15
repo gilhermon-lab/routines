@@ -72,7 +72,8 @@ object ModeStore {
                 contactPolicy = ContactPolicy.NONE,
                 smsCooldownHours = 2,
                 breakthrough = Breakthrough(true, 2, 5)
-            )
+            ),
+            calendar = CalendarTrigger(enabled = true)
         ),
         Mode(
             id = "drive", name = "נהיגה", colorArgb = 0xFFC8815AL, enabled = false,

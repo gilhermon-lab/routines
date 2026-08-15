@@ -1,34 +1,39 @@
 package com.gil.routines.ui
 
 import android.content.Context
-import android.content.Intent
-import android.net.Uri
 import android.provider.ContactsContract
 import com.gil.routines.data.AllowedContact
+import com.gil.routines.data.normalizeNumber
 
 /**
- * בחירת איש קשר דרך הבורר של המערכת.
- * בוחרים ישירות שורת טלפון ולא איש קשר, כך שמקבלים שם ומספר בשאילתה אחת
- * ולא צריך להתמודד עם איש קשר שיש לו כמה מספרים.
+ * קריאת אנשי הקשר מהמכשיר.
+ * שולפים שורות טלפון ולא אנשי קשר, כך שאיש קשר עם כמה מספרים
+ * מופיע פעם אחת לכל מספר ואין עמימות לגבי מה נחסם.
  */
-object ContactPicker {
+object Contacts {
 
-    fun intent(): Intent =
-        Intent(Intent.ACTION_PICK, ContactsContract.CommonDataKinds.Phone.CONTENT_URI)
-
-    fun read(ctx: Context, uri: Uri?): AllowedContact? {
-        if (uri == null) return null
+    fun all(ctx: Context): List<AllowedContact> {
         val cols = arrayOf(
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
             ContactsContract.CommonDataKinds.Phone.NUMBER
         )
         return runCatching {
-            ctx.contentResolver.query(uri, cols, null, null, null)?.use { c ->
-                if (!c.moveToFirst()) return null
-                val name = c.getString(0).orEmpty().ifBlank { "ללא שם" }
-                val number = c.getString(1).orEmpty()
-                if (number.isBlank()) null else AllowedContact(name, number)
+            ctx.contentResolver.query(
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI, cols, null, null,
+                "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
+            )?.use { c ->
+                val seen = HashSet<String>()
+                buildList {
+                    while (c.moveToNext()) {
+                        val name = c.getString(0).orEmpty().ifBlank { "ללא שם" }
+                        val number = c.getString(1).orEmpty()
+                        val key = normalizeNumber(number)
+                        if (number.isNotBlank() && key.isNotBlank() && seen.add(key)) {
+                            add(AllowedContact(name, number))
+                        }
+                    }
+                }
             }
-        }.getOrNull()
+        }.getOrNull().orEmpty()
     }
 }

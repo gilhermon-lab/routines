@@ -5,6 +5,7 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import com.gil.routines.calendar.CalendarReader
 import com.gil.routines.data.Mode
 import com.gil.routines.data.ModeStore
 import java.time.ZonedDateTime
@@ -24,7 +25,28 @@ object RoutineScheduler {
         ModeStore.load(ctx).filter { it.enabled }.forEach { mode ->
             schedule(ctx, am, mode, mode.start, now, isStart = true)
             schedule(ctx, am, mode, mode.end, now, isStart = false)
+
+            if (mode.calendar.enabled) scheduleCalendar(ctx, am, mode)
         }
+    }
+
+    /**
+     * אירועי יומן אינם חוזרים בשעה קבועה, ולכן מתזמנים כל גבול בנפרד
+     * מתוך 24 השעות הקרובות. כל התעוררות מתזמנת מחדש את הבאות.
+     */
+    private fun scheduleCalendar(ctx: Context, am: AlarmManager, mode: Mode) {
+        CalendarReader.upcomingBoundaries(ctx, mode.calendar)
+            .forEachIndexed { i, millis ->
+                val intent = Intent(ctx, RoutineAlarmReceiver::class.java)
+                    .putExtra(EXTRA_MODE_ID, mode.id)
+                val pi = PendingIntent.getBroadcast(
+                    ctx, (mode.id + ":cal:" + i).hashCode(), intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+                )
+                val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+                if (canExact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, millis, pi)
+                else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, millis, pi)
+            }
     }
 
     private fun schedule(

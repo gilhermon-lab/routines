@@ -41,6 +41,24 @@ data class CallConfig(
     val breakthrough: Breakthrough = Breakthrough()
 )
 
+/** טריגר יומן: המצב נדלק בזמן אירוע שמסומן "בעסוק" */
+data class CalendarTrigger(
+    val enabled: Boolean = false,
+    /** ריק = כל היומנים המסונכרנים */
+    val calendarIds: Set<Long> = emptySet(),
+    /** דורש שכותרת האירוע תכיל אחת מהמילים; ריק = כל אירוע עסוק */
+    val keywords: List<String> = listOf("ישיבה", "ישיבת", "פ\"ע", "פ\"א"),
+    val requireKeyword: Boolean = true,
+    /** החלטות ידניות לאירוע בודד, לפי מזהה: "eventId:begin" */
+    val forcedOn: Set<String> = emptySet(),
+    val forcedOff: Set<String> = emptySet()
+)
+
+/** משווים בלי גרשיים ובלי רווחים — פ"ע, פ״ע ו-פ ע צריכים להיחשב זהים */
+fun normalizeTitle(s: String): String =
+    s.filterNot { it in setOf('"', '\u05F4', '\u2019', '\'', '\u05F3', ' ', '\u200f', '\u200e') }
+        .lowercase()
+
 /** דקות מחצות, 0..1439 — מאפשר דיוק של דקה ולא רק שעות עגולות */
 typealias MinuteOfDay = Int
 
@@ -55,6 +73,7 @@ data class Mode(
     val days: Set<Int> = setOf(1, 2, 3, 4, 5, 6, 7),
     val actions: Set<String> = emptySet(),
     val call: CallConfig = CallConfig(),
+    val calendar: CalendarTrigger = CalendarTrigger(),
     /**
      * עקיפה ידנית של לוח הזמנים.
      * null = לפי הלוח, true = דלוק עכשיו בלי קשר לשעה, false = כבוי עכשיו.
@@ -102,6 +121,12 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
     put("end", end)
     put("days", JSONArray(days.toList()))
     put("actions", JSONArray(actions.toList()))
+    put("calEnabled", calendar.enabled)
+    put("calIds", JSONArray(calendar.calendarIds.toList()))
+    put("calWords", JSONArray(calendar.keywords))
+    put("calRequire", calendar.requireKeyword)
+    put("calOn", JSONArray(calendar.forcedOn.toList()))
+    put("calOff", JSONArray(calendar.forcedOff.toList()))
     put("override", manualOverride ?: JSONObject.NULL)
     put("call", JSONObject().apply {
         put("handling", call.handling.name)
@@ -132,6 +157,22 @@ fun modeFromJson(o: JSONObject): Mode {
         end = o.optInt("end", 0),
         days = o.optJSONArray("days").toIntSet(),
         actions = o.optJSONArray("actions").toStringSet(),
+        calendar = CalendarTrigger(
+            enabled = o.optBoolean("calEnabled", false),
+            calendarIds = (o.optJSONArray("calIds") ?: JSONArray()).let { arr ->
+                (0 until arr.length()).map { arr.getLong(it) }.toSet()
+            },
+            keywords = o.optJSONArray("calWords")?.let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }
+            } ?: CalendarTrigger().keywords,
+            requireKeyword = o.optBoolean("calRequire", true),
+            forcedOn = (o.optJSONArray("calOn") ?: JSONArray()).let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }.toSet()
+            },
+            forcedOff = (o.optJSONArray("calOff") ?: JSONArray()).let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }.toSet()
+            }
+        ),
         manualOverride = if (o.isNull("override")) null else o.optBoolean("override"),
         call = CallConfig(
             handling = runCatching { CallHandling.valueOf(c.optString("handling", "REJECT")) }

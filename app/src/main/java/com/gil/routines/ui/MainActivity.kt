@@ -28,6 +28,7 @@ import androidx.compose.material.icons.outlined.DirectionsCar
 import androidx.compose.material.icons.outlined.Groups
 import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.NotificationsActive
+import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.PhoneCallback
 import androidx.compose.material.icons.outlined.Schedule
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gil.routines.calendar.CalendarReader
 import com.gil.routines.call.CallLogStore
 import com.gil.routines.data.*
 import com.gil.routines.engine.ModeApplier
@@ -444,6 +446,220 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     )
                 }
 
+                // ── יומן ──
+                SectionHeader(Icons.Outlined.CalendarMonth, "יומן", top = 14)
+
+                ToggleRow("להפעיל לפי אירועים ביומן", draft.calendar.enabled) {
+                    draft = draft.copy(calendar = draft.calendar.copy(enabled = it))
+                }
+
+                if (draft.calendar.enabled) {
+                    if (!CalendarReader.hasPermission(ctx)) {
+                        Text(
+                            "חסרה הרשאת יומן. אשר אותה במסך ההרשאות שבתחתית הלוח הראשי.",
+                            fontSize = 11.sp, color = Lux.Brass, lineHeight = 17.sp
+                        )
+                    } else {
+                        val cals = remember { CalendarReader.calendars(ctx) }
+                        Text(
+                            "נספרים רק אירועים שמסומנים \"בעסוק\", שאינם יום שלם, ושלא דחית.",
+                            fontSize = 11.sp, color = Lux.Faint, lineHeight = 17.sp
+                        )
+
+                        if (cals.isEmpty()) {
+                            Text(
+                                "לא נמצא יומן מסונכרן במכשיר. ודא שיומן Outlook מסונכרן ליומן של הטלפון.",
+                                fontSize = 11.sp, color = Lux.Brass, lineHeight = 17.sp
+                            )
+                        } else {
+                            Text(
+                                if (draft.calendar.calendarIds.isEmpty()) "כל היומנים" else "יומנים נבחרים",
+                                fontSize = 11.sp, color = Lux.Muted
+                            )
+                            cals.forEach { cal ->
+                                val on = draft.calendar.calendarIds.contains(cal.id)
+                                Row(
+                                    Modifier.fillMaxWidth()
+                                        .background(Lux.Bg, RoundedCornerShape(12.dp))
+                                        .border(1.dp, if (on) color.copy(alpha = 0.5f) else Lux.Line, RoundedCornerShape(12.dp))
+                                        .clickable {
+                                            val ids = draft.calendar.calendarIds
+                                            draft = draft.copy(
+                                                calendar = draft.calendar.copy(
+                                                    calendarIds = if (on) ids - cal.id else ids + cal.id
+                                                )
+                                            )
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text(cal.name, fontSize = 13.sp, color = Lux.Text)
+                                        Text(cal.account, fontSize = 10.sp, color = Lux.Faint)
+                                    }
+                                    if (on) Text("נבחר", fontSize = 11.sp, color = color)
+                                }
+                            }
+
+                            // ── מילות מפתח ──
+                            Spacer(Modifier.height(6.dp))
+                            ToggleRow("רק אירועים שהכותרת שלהם מכילה מילה", draft.calendar.requireKeyword) {
+                                draft = draft.copy(calendar = draft.calendar.copy(requireKeyword = it))
+                            }
+
+                            if (draft.calendar.requireKeyword) {
+                                var newWord by remember { mutableStateOf("") }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    draft.calendar.keywords.take(4).forEach { w ->
+                                        Row(
+                                            Modifier
+                                                .background(color.copy(alpha = 0.16f), RoundedCornerShape(99.dp))
+                                                .border(1.dp, color.copy(alpha = 0.45f), RoundedCornerShape(99.dp))
+                                                .clickable {
+                                                    draft = draft.copy(
+                                                        calendar = draft.calendar.copy(
+                                                            keywords = draft.calendar.keywords - w
+                                                        )
+                                                    )
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(w, fontSize = 12.sp, color = color)
+                                            Spacer(Modifier.width(6.dp))
+                                            Text("×", fontSize = 13.sp, color = Lux.Faint)
+                                        }
+                                    }
+                                }
+
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    OutlinedTextField(
+                                        value = newWord,
+                                        onValueChange = { newWord = it },
+                                        label = { Text("מילה נוספת", color = Lux.Muted) },
+                                        singleLine = true,
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Lux.Brass,
+                                            unfocusedBorderColor = Lux.Line,
+                                            focusedTextColor = Lux.Text,
+                                            unfocusedTextColor = Lux.Text,
+                                            cursorColor = Lux.Brass
+                                        ),
+                                        modifier = Modifier.weight(1f)
+                                    )
+                                    OutlinedButton(
+                                        onClick = {
+                                            val w = newWord.trim()
+                                            if (w.isNotBlank() && !draft.calendar.keywords.contains(w)) {
+                                                draft = draft.copy(
+                                                    calendar = draft.calendar.copy(
+                                                        keywords = draft.calendar.keywords + w
+                                                    )
+                                                )
+                                            }
+                                            newWord = ""
+                                        },
+                                        enabled = newWord.isNotBlank(),
+                                        shape = RoundedCornerShape(12.dp),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Brass)
+                                    ) { Text("הוספה", fontSize = 13.sp) }
+                                }
+
+                                Text(
+                                    "ההשוואה מתעלמת מגרשיים ומרווחים, כך ש-פ\"ע ו-פ״ע נחשבים זהים.",
+                                    fontSize = 10.sp, color = Lux.Faint, lineHeight = 15.sp
+                                )
+                            }
+
+                            // ── בחירה ידנית לאירוע בודד ──
+                            val upcoming = remember(draft.calendar) {
+                                CalendarReader.upcomingAll(ctx, draft.calendar)
+                            }
+                            if (upcoming.isNotEmpty()) {
+                                Spacer(Modifier.height(6.dp))
+                                Text("אירועים קרובים", fontSize = 12.sp, color = Lux.Muted)
+                                Text(
+                                    "לחיצה על אירוע קובעת אותו ידנית, בלי קשר למילות המפתח.",
+                                    fontSize = 10.sp, color = Lux.Faint
+                                )
+
+                                val fmtDay = remember { SimpleDateFormat("EEE HH:mm", Locale("he")) }
+                                upcoming.take(12).forEach { ev ->
+                                    val on = CalendarReader.matches(draft.calendar, ev)
+                                    Row(
+                                        Modifier.fillMaxWidth()
+                                            .background(Lux.Bg, RoundedCornerShape(12.dp))
+                                            .border(
+                                                1.dp,
+                                                if (on) color.copy(alpha = 0.5f) else Lux.Line,
+                                                RoundedCornerShape(12.dp)
+                                            )
+                                            .clickable {
+                                                val c0 = draft.calendar
+                                                draft = draft.copy(
+                                                    calendar = if (on)
+                                                        c0.copy(
+                                                            forcedOff = c0.forcedOff + ev.key,
+                                                            forcedOn = c0.forcedOn - ev.key
+                                                        )
+                                                    else
+                                                        c0.copy(
+                                                            forcedOn = c0.forcedOn + ev.key,
+                                                            forcedOff = c0.forcedOff - ev.key
+                                                        )
+                                                )
+                                            }
+                                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Checkbox(
+                                            checked = on,
+                                            onCheckedChange = null,
+                                            colors = CheckboxDefaults.colors(
+                                                checkedColor = color,
+                                                uncheckedColor = Lux.Faint,
+                                                checkmarkColor = Lux.Bg
+                                            )
+                                        )
+                                        Spacer(Modifier.width(6.dp))
+                                        Column(Modifier.weight(1f)) {
+                                            Text(ev.title, fontSize = 13.sp, color = Lux.Text)
+                                            Text(
+                                                fmtDay.format(Date(ev.begin)),
+                                                fontSize = 10.sp, color = Lux.Faint
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
+                            val next = remember(draft.calendar) {
+                                CalendarReader.nextMatching(ctx, draft.calendar)
+                            }
+                            val nowEv = remember(draft.calendar) {
+                                CalendarReader.activeNow(ctx, draft.calendar)
+                            }
+                            Text(
+                                when {
+                                    nowEv != null -> "כרגע: ${nowEv.title}"
+                                    next != null -> "הבא: ${next.title} בשעה " +
+                                        SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(next.begin))
+                                    else -> "אין אירוע קרוב שעונה לתנאים"
+                                },
+                                fontSize = 12.sp, color = Lux.BrassSoft
+                            )
+                        }
+                    }
+                }
+
                 SectionHeader(Icons.Outlined.PhoneCallback, "שיחות נכנסות", top = 14)
 
                 ToggleRow("סינון שיחות במצב הזה", draft.actions.contains(Actions.CALL_GUARD)) {
@@ -493,16 +709,18 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     ) { draft = draft.copy(call = draft.call.copy(contactPolicy = it)) }
 
                     if (draft.call.contactPolicy == ContactPolicy.LIST) {
-                        val pickLauncher = rememberLauncherForActivityResult(
-                            ActivityResultContracts.StartActivityForResult()
-                        ) { res ->
-                            ContactPicker.read(ctx, res.data?.data)?.let { picked ->
-                                if (draft.call.allowed.none { it.key == picked.key }) {
-                                    draft = draft.copy(
-                                        call = draft.call.copy(allowed = draft.call.allowed + picked)
-                                    )
+                        var showPicker by remember { mutableStateOf(false) }
+
+                        if (showPicker) {
+                            ContactMultiPicker(
+                                already = draft.call.allowed,
+                                accent = color,
+                                onDismiss = { showPicker = false },
+                                onConfirm = { chosen ->
+                                    draft = draft.copy(call = draft.call.copy(allowed = chosen))
+                                    showPicker = false
                                 }
-                            }
+                            )
                         }
 
                         draft.call.allowed.forEach { c ->
@@ -526,11 +744,17 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         }
 
                         OutlinedButton(
-                            onClick = { pickLauncher.launch(ContactPicker.intent()) },
+                            onClick = { showPicker = true },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Brass)
-                        ) { Text("הוספת איש קשר", fontSize = 13.sp) }
+                        ) {
+                            Text(
+                                if (draft.call.allowed.isEmpty()) "בחירת אנשי קשר"
+                                else "עריכת הרשימה (${draft.call.allowed.size})",
+                                fontSize = 13.sp
+                            )
+                        }
 
                         if (draft.call.allowed.isEmpty()) {
                             Text(
