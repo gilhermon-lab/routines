@@ -46,6 +46,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
@@ -134,6 +137,16 @@ fun RoutinesScreen() {
     var showDiag by remember { mutableStateOf(false) }
     var tick by remember { mutableIntStateOf(0) }
 
+    // הרשאות משתנות גם מחוץ לאפליקציה, לכן סופרים מחדש בכל חזרה למסך
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val obs = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) tick++
+        }
+        lifecycleOwner.lifecycle.addObserver(obs)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
+    }
+
     val active = remember(modes, tick) { RoutineEngine.activeModes(ctx) }
     val grantedCount = remember(tick) {
         Permissions.all.count { runCatching { it.isGranted(ctx) }.getOrDefault(false) }
@@ -192,7 +205,14 @@ fun RoutinesScreen() {
 
     editing?.let { id ->
         modes.find { it.id == id }?.let { mode ->
-            ModeSheet(mode, { editing = null }) { updated -> mutate(id) { updated } }
+            ModeSheet(
+                mode = mode,
+                onCancel = { editing = null },
+                onSave = { updated ->
+                    mutate(id) { updated }
+                    editing = null          // חוזרים ללוח הראשי אחרי שמירה
+                }
+            )
         }
     }
 
@@ -333,149 +353,211 @@ fun ModeRow(mode: Mode, live: Boolean, onToggle: () -> Unit, onOpen: () -> Unit)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ModeSheet(mode: Mode, onDismiss: () -> Unit, onChange: (Mode) -> Unit) {
-    val color = Color(mode.colorArgb.toInt())
+fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
+    // טיוטה מקומית: כל עריכה נוגעת בה בלבד, ורק "שמירה" מחילה אותה על המצב האמיתי.
+    // זה גם מה שמנע קודם מהמסך הראשי להציג ערכים ישנים.
+    var draft by remember(mode.id) { mutableStateOf(mode) }
+    val color = Color(draft.colorArgb.toInt())
+    val dirty = draft != mode
 
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = onCancel,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Lux.Surface,
         contentColor = Lux.Text,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
-        Column(
-            Modifier
-                .verticalScroll(rememberScrollState())   // בלי זה התוכן הארוך נחתך
-                .padding(horizontal = 22.dp)
-                .navigationBarsPadding()
-                .padding(bottom = 32.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
+        Column(Modifier.fillMaxHeight(0.94f)) {
+
+            Column(
+                Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 22.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Box(
+                        Modifier.size(46.dp)
+                            .background(color.copy(alpha = 0.18f), RoundedCornerShape(15.dp))
+                            .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(15.dp)),
+                        contentAlignment = Alignment.Center
+                    ) { Icon(iconFor(draft.id), null, tint = color, modifier = Modifier.size(23.dp)) }
+                    Text(draft.name, fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.Text)
+                }
+
+                SectionHeader(Icons.Outlined.Tune, "עכשיו", top = 14)
+                SegmentedRow(
+                    listOf("לפי הלוח" to null, "דלוק" to true, "כבוי" to false),
+                    draft.manualOverride, color
+                ) { draft = draft.copy(manualOverride = it) }
+
+                SectionHeader(Icons.Outlined.Schedule, "מתי", top = 14)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TimeField("התחלה", draft.start, Modifier.weight(1f)) { draft = draft.copy(start = it) }
+                    TimeField("סיום", draft.end, Modifier.weight(1f)) { draft = draft.copy(end = it) }
+                }
+
+                // קיצורים לבחירת ימים
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    listOf(
+                        "כל יום" to setOf(1, 2, 3, 4, 5, 6, 7),
+                        "ימי חול" to setOf(1, 2, 3, 4, 5),
+                        "סוף שבוע" to setOf(6, 7)
+                    ).forEach { (label, days) ->
+                        val on = draft.days == days
+                        Box(
+                            Modifier.weight(1f).height(36.dp)
+                                .background(if (on) color.copy(alpha = 0.18f) else Color.Transparent, RoundedCornerShape(11.dp))
+                                .border(1.dp, if (on) color.copy(alpha = 0.6f) else Lux.Line, RoundedCornerShape(11.dp))
+                                .clickable { draft = draft.copy(days = days) },
+                            contentAlignment = Alignment.Center
+                        ) { Text(label, color = if (on) color else Lux.Muted, fontSize = 12.sp) }
+                    }
+                }
+
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("א" to 1, "ב" to 2, "ג" to 3, "ד" to 4, "ה" to 5, "ו" to 6, "ש" to 7)
+                        .forEach { (label, d) ->
+                            val on = draft.days.contains(d)
+                            Box(
+                                Modifier.weight(1f).height(42.dp)
+                                    .background(if (on) color.copy(alpha = 0.18f) else Color.Transparent, RoundedCornerShape(12.dp))
+                                    .border(1.dp, if (on) color.copy(alpha = 0.55f) else Lux.Line, RoundedCornerShape(12.dp))
+                                    .clickable {
+                                        draft = draft.copy(days = if (on) draft.days - d else draft.days + d)
+                                    },
+                                contentAlignment = Alignment.Center
+                            ) { Text(label, color = if (on) color else Lux.Faint, fontSize = 13.sp) }
+                        }
+                }
+
+                if (draft.days.isEmpty()) {
+                    Text(
+                        "לא נבחר אף יום — המצב לא יופעל לפי הלוח.",
+                        fontSize = 11.sp, color = Lux.Brass
+                    )
+                }
+
+                SectionHeader(Icons.Outlined.PhoneCallback, "שיחות נכנסות", top = 14)
+
+                ToggleRow("סינון שיחות במצב הזה", draft.actions.contains(Actions.CALL_GUARD)) {
+                    draft = draft.copy(actions = if (it) draft.actions + Actions.CALL_GUARD else draft.actions - Actions.CALL_GUARD)
+                }
+
+                if (draft.actions.contains(Actions.CALL_GUARD)) {
+                    SegmentedRow(
+                        listOf("לדחות מיד" to CallHandling.REJECT, "להשתיק בשקט" to CallHandling.SILENCE),
+                        draft.call.handling, color
+                    ) { draft = draft.copy(call = draft.call.copy(handling = it)) }
+
+                    ToggleRow("לשלוח הודעה למתקשר", draft.call.sendSms) {
+                        draft = draft.copy(call = draft.call.copy(sendSms = it))
+                    }
+
+                    if (draft.call.sendSms) {
+                        OutlinedTextField(
+                            value = draft.call.message,
+                            onValueChange = { draft = draft.copy(call = draft.call.copy(message = it)) },
+                            label = { Text("ההודעה שתישלח", color = Lux.Muted) },
+                            minLines = 2,
+                            shape = RoundedCornerShape(14.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = Lux.Brass,
+                                unfocusedBorderColor = Lux.Line,
+                                focusedTextColor = Lux.Text,
+                                unfocusedTextColor = Lux.Text,
+                                cursorColor = Lux.Brass
+                            ),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Text(
+                            "${draft.call.message.length} תווים · ${(draft.call.message.length / 70) + 1} הודעות SMS",
+                            fontSize = 11.sp, color = Lux.Faint
+                        )
+                    }
+
+                    ToggleRow("לתת לאנשי קשר לצלצל", draft.call.allowContacts) {
+                        draft = draft.copy(call = draft.call.copy(allowContacts = it))
+                    }
+
+                    SectionHeader(Icons.Outlined.NotificationsActive, "פריצה בחיוג חוזר", top = 14)
+                    ToggleRow("להפעיל פריצה", draft.call.breakthrough.enabled) {
+                        draft = draft.copy(call = draft.call.copy(breakthrough = draft.call.breakthrough.copy(enabled = it)))
+                    }
+                    if (draft.call.breakthrough.enabled) {
+                        StepperRow("אחרי כמה חיוגים", draft.call.breakthrough.attempts, 2..6, "חיוגים") {
+                            draft = draft.copy(call = draft.call.copy(breakthrough = draft.call.breakthrough.copy(attempts = it)))
+                        }
+                        StepperRow("בתוך כמה זמן", draft.call.breakthrough.windowMinutes, 5..30, "דקות", 5) {
+                            draft = draft.copy(call = draft.call.copy(breakthrough = draft.call.breakthrough.copy(windowMinutes = it)))
+                        }
+                    }
+
+                    Spacer(Modifier.height(4.dp))
+                    Box(
+                        Modifier.fillMaxWidth()
+                            .background(Lux.Bg, RoundedCornerShape(14.dp))
+                            .border(1.dp, Lux.Line, RoundedCornerShape(14.dp))
+                            .padding(14.dp)
+                    ) {
+                        Text(
+                            buildString {
+                                append("שיחה ממספר לא מוכר ")
+                                append(if (draft.call.handling == CallHandling.SILENCE) "תושתק בשקט" else "תידחה")
+                                append(if (draft.call.sendSms) ", ותישלח ההודעה שלמעלה." else ", בלי הודעה.")
+                                if (draft.call.allowContacts) append(" אנשי קשר יצלצלו כרגיל.")
+                                if (draft.call.breakthrough.enabled) {
+                                    append(" ${draft.call.breakthrough.attempts} חיוגים תוך ")
+                                    append("${draft.call.breakthrough.windowMinutes} דקות יפרצו את ההשתקה.")
+                                }
+                            },
+                            fontSize = 12.sp, color = Lux.Muted, lineHeight = 19.sp
+                        )
+                    }
+                }
+
+                SectionHeader(Icons.Outlined.Tune, "פעולות נוספות", top = 14)
+                ToggleRow("נא לא להפריע", draft.actions.contains(Actions.DND)) {
+                    draft = draft.copy(actions = if (it) draft.actions + Actions.DND else draft.actions - Actions.DND)
+                }
+                ToggleRow("השתקת צלצול", draft.actions.contains(Actions.MUTE)) {
+                    draft = draft.copy(actions = if (it) draft.actions + Actions.MUTE else draft.actions - Actions.MUTE)
+                }
+
+                Spacer(Modifier.height(16.dp))
+            }
+
+            // סרגל פעולות קבוע — תמיד נראה, לא נגלל עם התוכן
             Row(
-                verticalAlignment = Alignment.CenterVertically,
+                Modifier.fillMaxWidth()
+                    .background(Lux.SurfaceHi)
+                    .navigationBarsPadding()
+                    .padding(horizontal = 22.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Box(
-                    Modifier.size(46.dp)
-                        .background(color.copy(alpha = 0.18f), RoundedCornerShape(15.dp))
-                        .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(15.dp)),
-                    contentAlignment = Alignment.Center
-                ) { Icon(iconFor(mode.id), null, tint = color, modifier = Modifier.size(23.dp)) }
-                Text(mode.name, fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.Text)
-            }
+                OutlinedButton(
+                    onClick = onCancel,
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Muted)
+                ) { Text("ביטול", fontSize = 15.sp) }
 
-            SectionHeader(Icons.Outlined.Tune, "עכשיו", top = 14)
-            SegmentedRow(
-                listOf("לפי הלוח" to null, "דלוק" to true, "כבוי" to false),
-                mode.manualOverride, color
-            ) { onChange(mode.copy(manualOverride = it)) }
-
-            SectionHeader(Icons.Outlined.Schedule, "מתי", top = 14)
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                TimeField("התחלה", mode.start, Modifier.weight(1f)) { onChange(mode.copy(start = it)) }
-                TimeField("סיום", mode.end, Modifier.weight(1f)) { onChange(mode.copy(end = it)) }
-            }
-
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                listOf("א" to 1, "ב" to 2, "ג" to 3, "ד" to 4, "ה" to 5, "ו" to 6, "ש" to 7)
-                    .forEach { (label, d) ->
-                        val on = mode.days.contains(d)
-                        Box(
-                            Modifier.weight(1f).height(42.dp)
-                                .background(if (on) color.copy(alpha = 0.18f) else Color.Transparent, RoundedCornerShape(12.dp))
-                                .border(1.dp, if (on) color.copy(alpha = 0.55f) else Lux.Line, RoundedCornerShape(12.dp))
-                                .clickable {
-                                    onChange(mode.copy(days = if (on) mode.days - d else mode.days + d))
-                                },
-                            contentAlignment = Alignment.Center
-                        ) { Text(label, color = if (on) color else Lux.Faint, fontSize = 13.sp) }
-                    }
-            }
-
-            SectionHeader(Icons.Outlined.PhoneCallback, "שיחות נכנסות", top = 14)
-
-            ToggleRow("סינון שיחות במצב הזה", mode.actions.contains(Actions.CALL_GUARD)) {
-                onChange(mode.copy(actions = if (it) mode.actions + Actions.CALL_GUARD else mode.actions - Actions.CALL_GUARD))
-            }
-
-            if (mode.actions.contains(Actions.CALL_GUARD)) {
-                SegmentedRow(
-                    listOf("לדחות מיד" to CallHandling.REJECT, "להשתיק בשקט" to CallHandling.SILENCE),
-                    mode.call.handling, color
-                ) { onChange(mode.copy(call = mode.call.copy(handling = it))) }
-
-                ToggleRow("לשלוח הודעה למתקשר", mode.call.sendSms) {
-                    onChange(mode.copy(call = mode.call.copy(sendSms = it)))
-                }
-
-                if (mode.call.sendSms) {
-                    OutlinedTextField(
-                        value = mode.call.message,
-                        onValueChange = { onChange(mode.copy(call = mode.call.copy(message = it))) },
-                        label = { Text("ההודעה שתישלח", color = Lux.Muted) },
-                        minLines = 2,
-                        shape = RoundedCornerShape(14.dp),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = Lux.Brass,
-                            unfocusedBorderColor = Lux.Line,
-                            focusedTextColor = Lux.Text,
-                            unfocusedTextColor = Lux.Text,
-                            cursorColor = Lux.Brass
-                        ),
-                        modifier = Modifier.fillMaxWidth()
+                Button(
+                    onClick = { onSave(draft) },
+                    enabled = dirty,
+                    modifier = Modifier.weight(1f).height(50.dp),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Lux.Brass,
+                        contentColor = Lux.Bg,
+                        disabledContainerColor = Lux.Line,
+                        disabledContentColor = Lux.Faint
                     )
-                    Text(
-                        "${mode.call.message.length} תווים · ${(mode.call.message.length / 70) + 1} הודעות SMS",
-                        fontSize = 11.sp, color = Lux.Faint
-                    )
-                }
-
-                ToggleRow("לתת לאנשי קשר לצלצל", mode.call.allowContacts) {
-                    onChange(mode.copy(call = mode.call.copy(allowContacts = it)))
-                }
-
-                SectionHeader(Icons.Outlined.NotificationsActive, "פריצה בחיוג חוזר", top = 14)
-                ToggleRow("להפעיל פריצה", mode.call.breakthrough.enabled) {
-                    onChange(mode.copy(call = mode.call.copy(breakthrough = mode.call.breakthrough.copy(enabled = it))))
-                }
-                if (mode.call.breakthrough.enabled) {
-                    StepperRow("אחרי כמה חיוגים", mode.call.breakthrough.attempts, 2..6, "חיוגים") {
-                        onChange(mode.copy(call = mode.call.copy(breakthrough = mode.call.breakthrough.copy(attempts = it))))
-                    }
-                    StepperRow("בתוך כמה זמן", mode.call.breakthrough.windowMinutes, 5..30, "דקות", 5) {
-                        onChange(mode.copy(call = mode.call.copy(breakthrough = mode.call.breakthrough.copy(windowMinutes = it))))
-                    }
-                }
-
-                Spacer(Modifier.height(4.dp))
-                Box(
-                    Modifier.fillMaxWidth()
-                        .background(Lux.Bg, RoundedCornerShape(14.dp))
-                        .border(1.dp, Lux.Line, RoundedCornerShape(14.dp))
-                        .padding(14.dp)
-                ) {
-                    Text(
-                        buildString {
-                            append("שיחה ממספר לא מוכר ")
-                            append(if (mode.call.handling == CallHandling.SILENCE) "תושתק בשקט" else "תידחה")
-                            append(if (mode.call.sendSms) ", ותישלח ההודעה שלמעלה." else ", בלי הודעה.")
-                            if (mode.call.allowContacts) append(" אנשי קשר יצלצלו כרגיל.")
-                            if (mode.call.breakthrough.enabled) {
-                                append(" ${mode.call.breakthrough.attempts} חיוגים תוך ")
-                                append("${mode.call.breakthrough.windowMinutes} דקות יפרצו את ההשתקה.")
-                            }
-                        },
-                        fontSize = 12.sp, color = Lux.Muted, lineHeight = 19.sp
-                    )
-                }
-            }
-
-            SectionHeader(Icons.Outlined.Tune, "פעולות נוספות", top = 14)
-            ToggleRow("נא לא להפריע", mode.actions.contains(Actions.DND)) {
-                onChange(mode.copy(actions = if (it) mode.actions + Actions.DND else mode.actions - Actions.DND))
-            }
-            ToggleRow("השתקת צלצול", mode.actions.contains(Actions.MUTE)) {
-                onChange(mode.copy(actions = if (it) mode.actions + Actions.MUTE else mode.actions - Actions.MUTE))
+                ) { Text(if (dirty) "שמירה" else "אין שינויים", fontSize = 15.sp) }
             }
         }
     }
