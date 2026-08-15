@@ -9,7 +9,14 @@ import androidx.core.content.ContextCompat
 import com.gil.routines.data.CalendarTrigger
 import com.gil.routines.data.normalizeTitle
 
-data class CalendarInfo(val id: Long, val name: String, val account: String)
+data class CalendarInfo(
+    val id: Long,
+    val name: String,
+    val account: String,
+    val type: String,
+    val visible: Boolean,
+    val syncing: Boolean
+)
 
 data class BusyEvent(val id: Long, val title: String, val begin: Long, val end: Long) {
     /** מזהה יציב למופע בודד, כדי לאפשר החלטה ידנית לאירוע אחד */
@@ -36,16 +43,30 @@ object CalendarReader {
         val cols = arrayOf(
             CalendarContract.Calendars._ID,
             CalendarContract.Calendars.CALENDAR_DISPLAY_NAME,
-            CalendarContract.Calendars.ACCOUNT_NAME
+            CalendarContract.Calendars.ACCOUNT_NAME,
+            CalendarContract.Calendars.ACCOUNT_TYPE,
+            CalendarContract.Calendars.VISIBLE,
+            CalendarContract.Calendars.SYNC_EVENTS
         )
+        // בלי סינון על VISIBLE: יומנים ש-Outlook מייצא נוצרים לפעמים כלא־גלויים
+        // באפליקציית היומן, ואז הם נעלמים מהרשימה למרות שהאירועים קיימים.
         return runCatching {
             ctx.contentResolver.query(
-                CalendarContract.Calendars.CONTENT_URI, cols,
-                "${CalendarContract.Calendars.VISIBLE}=1", null, null
+                CalendarContract.Calendars.CONTENT_URI, cols, null, null,
+                "${CalendarContract.Calendars.ACCOUNT_NAME} ASC"
             )?.use { c ->
                 buildList {
                     while (c.moveToNext()) {
-                        add(CalendarInfo(c.getLong(0), c.getString(1).orEmpty(), c.getString(2).orEmpty()))
+                        add(
+                            CalendarInfo(
+                                id = c.getLong(0),
+                                name = c.getString(1).orEmpty(),
+                                account = c.getString(2).orEmpty(),
+                                type = c.getString(3).orEmpty(),
+                                visible = c.getInt(4) == 1,
+                                syncing = c.getInt(5) == 1
+                            )
+                        )
                     }
                 }
             }

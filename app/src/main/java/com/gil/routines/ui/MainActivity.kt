@@ -496,6 +496,16 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                     Column(Modifier.weight(1f)) {
                                         Text(cal.name, fontSize = 13.sp, color = Lux.Text)
                                         Text(cal.account, fontSize = 10.sp, color = Lux.Faint)
+                                        if (!cal.visible || !cal.syncing) {
+                                            Text(
+                                                buildString {
+                                                    if (!cal.visible) append("מוסתר ביומן")
+                                                    if (!cal.visible && !cal.syncing) append(" · ")
+                                                    if (!cal.syncing) append("סנכרון כבוי")
+                                                },
+                                                fontSize = 10.sp, color = Lux.Brass
+                                            )
+                                        }
                                     }
                                     if (on) Text("נבחר", fontSize = 11.sp, color = color)
                                 }

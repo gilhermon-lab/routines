@@ -28,12 +28,37 @@ jobs:
         with:
           gradle-version: '8.9'
 
-      # בלי wrapper — קוראים ל-gradle ישירות, כך אין צורך ב-gradle-wrapper.jar במאגר
-      - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+      # מפתח חתימה קבוע — בלעדיו כל בנייה היא אפליקציה אחרת מבחינת אנדרואיד,
+      # ואז כל התקנה דורשת הסרה ומאבדת הגדרות והרשאות.
+      - name: Restore keystore
+        id: ks
+        env:
+          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/keystore.jks"
+            echo "signed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "אין מפתח חתימה — נבנה בילד debug לא חתום"
+            echo "signed=false" >> "$GITHUB_OUTPUT"
+          fi
 
-      - name: Rename
-        run: cp app/build/outputs/apk/debug/app-debug.apk routines.apk
+      - name: Build signed release
+        if: steps.ks.outputs.signed == 'true'
+        env:
+          KEYSTORE_PATH: ${{ runner.temp }}/keystore.jks
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          gradle assembleRelease --no-daemon --stacktrace
+          cp app/build/outputs/apk/release/app-release.apk routines.apk
+
+      - name: Build debug
+        if: steps.ks.outputs.signed != 'true'
+        run: |
+          gradle assembleDebug --no-daemon --stacktrace
+          cp app/build/outputs/apk/debug/app-debug.apk routines.apk
 
       - name: Publish release
         uses: softprops/action-gh-release@v2
