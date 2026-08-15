@@ -7,7 +7,6 @@ import android.net.Uri
 import android.provider.ContactsContract
 import android.telecom.Call
 import android.telecom.CallScreeningService
-import android.telephony.SmsManager
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.gil.routines.data.Actions
@@ -87,17 +86,10 @@ class CallGuardService : CallScreeningService() {
         if (!hasPermission(Manifest.permission.SEND_SMS)) return false
         if (!CallAttemptLog.shouldSendSms(this, number, mode.call.smsCooldownHours)) return false
 
-        return runCatching {
-            val sms = getSystemService(SmsManager::class.java)
-            val parts = sms.divideMessage(mode.call.message)
-            if (parts.size == 1) {
-                sms.sendTextMessage(number, null, mode.call.message, null, null)
-            } else {
-                sms.sendMultipartTextMessage(number, null, parts, null, null)
-            }
-            CallAttemptLog.markSmsSent(this, number)
-            true
-        }.onFailure { Log.w(TAG, "שליחת ההודעה נכשלה", it) }.getOrDefault(false)
+        return SmsSender.send(this, number, mode.call.message)
+            .onSuccess { CallAttemptLog.markSmsSent(this, number) }
+            .onFailure { Log.w(TAG, "שליחת ההודעה נכשלה", it) }
+            .isSuccess
     }
 
     /** מספרים מגיעים בפורמטים שונים, ולכן PhoneLookup ולא השוואת מחרוזות */

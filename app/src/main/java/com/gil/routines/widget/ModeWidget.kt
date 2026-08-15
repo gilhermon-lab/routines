@@ -11,7 +11,6 @@ import com.gil.routines.R
 import com.gil.routines.data.ModeStore
 import com.gil.routines.engine.ModeApplier
 import com.gil.routines.engine.RoutineEngine
-import com.gil.routines.ui.MainActivity
 
 /**
  * ווידג'ט מסך הבית להפעלה וכיבוי מיידיים של מצב, בלי קשר ללוח הזמנים.
@@ -69,8 +68,10 @@ class ModeWidget : AppWidgetProvider() {
             setTextColor(R.id.widget_title, if (live) 0xFF14161B.toInt() else 0xFFF2F0EC.toInt())
             setTextColor(R.id.widget_state, if (live) 0xCC14161B.toInt() else 0xFF8B8FA0.toInt())
 
+            // כל שטח הווידג'ט מחליף מצב — כולל הכותרת, שקודם פתחה את האפליקציה
             setOnClickPendingIntent(R.id.widget_root, togglePendingIntent(ctx))
-            setOnClickPendingIntent(R.id.widget_title, openAppPendingIntent(ctx))
+            setOnClickPendingIntent(R.id.widget_title, togglePendingIntent(ctx))
+            setOnClickPendingIntent(R.id.widget_state, togglePendingIntent(ctx))
         }
         mgr.updateAppWidget(id, views)
     }
@@ -79,13 +80,6 @@ class ModeWidget : AppWidgetProvider() {
         val i = Intent(ctx, ModeWidget::class.java).setAction(ACTION_TOGGLE)
         return PendingIntent.getBroadcast(
             ctx, 1, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-    }
-
-    private fun openAppPendingIntent(ctx: Context): PendingIntent {
-        val i = Intent(ctx, MainActivity::class.java)
-        return PendingIntent.getActivity(
-            ctx, 2, i, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
     }
 

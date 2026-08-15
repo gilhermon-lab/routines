@@ -30,6 +30,7 @@ import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.PhoneCallback
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Tune
 import androidx.compose.material.icons.outlined.Work
@@ -130,6 +131,7 @@ fun RoutinesScreen() {
     var modes by remember { mutableStateOf(ModeStore.load(ctx)) }
     var editing by remember { mutableStateOf<String?>(null) }
     var showPerms by remember { mutableStateOf(false) }
+    var showDiag by remember { mutableStateOf(false) }
     var tick by remember { mutableIntStateOf(0) }
 
     val active = remember(modes, tick) { RoutineEngine.activeModes(ctx) }
@@ -179,6 +181,11 @@ fun RoutinesScreen() {
             item {
                 Spacer(Modifier.height(26.dp))
                 PermissionsTrigger(grantedCount) { showPerms = true }
+                Spacer(Modifier.height(10.dp))
+                TriggerRow(
+                    Icons.Outlined.MonitorHeart, "בדיקת מערכת",
+                    "מה חסם הודעה, ושליחת הודעת בדיקה"
+                ) { showDiag = true }
             }
         }
     }
@@ -191,6 +198,10 @@ fun RoutinesScreen() {
 
     if (showPerms) {
         PermissionsSheet(onDismiss = { showPerms = false }, onChanged = { tick++ })
+    }
+
+    if (showDiag) {
+        DiagnosticsSheet(onDismiss = { showDiag = false })
     }
 }
 
@@ -471,6 +482,26 @@ fun ModeSheet(mode: Mode, onDismiss: () -> Unit, onChange: (Mode) -> Unit) {
 }
 
 /* ── הרשאות: כפתור בתחתית + חלון צף ── */
+
+@Composable
+fun TriggerRow(icon: ImageVector, title: String, subtitle: String, tint: Color = Lux.Brass, onClick: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth()
+            .background(Lux.Surface, RoundedCornerShape(18.dp))
+            .border(1.dp, Lux.Line, RoundedCornerShape(18.dp))
+            .clickable { onClick() }
+            .padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 15.sp, color = Lux.Text)
+            Text(subtitle, fontSize = 12.sp, color = Lux.Faint)
+        }
+        Text("‹", fontSize = 22.sp, color = Lux.Faint)
+    }
+}
 
 @Composable
 fun PermissionsTrigger(granted: Int, onClick: () -> Unit) {
