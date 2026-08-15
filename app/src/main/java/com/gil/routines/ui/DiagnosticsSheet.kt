@@ -27,6 +27,7 @@ import androidx.core.content.ContextCompat
 import com.gil.routines.call.SmsSender
 import com.gil.routines.data.Actions
 import com.gil.routines.data.ModeStore
+import com.gil.routines.engine.ModeApplier
 import com.gil.routines.engine.RoutineEngine
 
 private data class Check(val label: String, val ok: Boolean, val hint: String)
@@ -113,6 +114,22 @@ fun DiagnosticsSheet(onDismiss: () -> Unit) {
                         Text(c.label, fontSize = 14.sp, color = Lux.Text)
                         if (!c.ok) Text(c.hint, fontSize = 11.sp, color = Lux.Muted, lineHeight = 17.sp)
                     }
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+            Text("מצב נוכחי", fontSize = 15.sp, color = Lux.Text)
+            Box(
+                Modifier.fillMaxWidth()
+                    .background(Lux.Bg, RoundedCornerShape(14.dp))
+                    .border(1.dp, Lux.Line, RoundedCornerShape(14.dp))
+                    .padding(14.dp)
+            ) {
+                Column {
+                    Text("נא לא להפריע כרגע: ${ModeApplier.dndFilterName(ctx)}",
+                        fontSize = 12.sp, color = Lux.Muted)
+                    Text("הפעלה אחרונה: ${ModeApplier.lastTrace(ctx)}",
+                        fontSize = 12.sp, color = Lux.Muted, lineHeight = 18.sp)
                 }
             }
 
