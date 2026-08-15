@@ -15,8 +15,11 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Bedtime
@@ -143,8 +146,8 @@ fun RoutinesScreen() {
 
     Surface(color = Lux.Bg, modifier = Modifier.fillMaxSize()) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(top = 44.dp, bottom = 40.dp)
+            modifier = Modifier.fillMaxSize().navigationBarsPadding().padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(top = 48.dp, bottom = 56.dp)
         ) {
             item {
                 Text("שגרות", fontSize = 30.sp, fontWeight = FontWeight.Light,
@@ -324,12 +327,17 @@ fun ModeSheet(mode: Mode, onDismiss: () -> Unit, onChange: (Mode) -> Unit) {
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Lux.Surface,
         contentColor = Lux.Text,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
-            Modifier.padding(horizontal = 22.dp).padding(bottom = 40.dp),
+            Modifier
+                .verticalScroll(rememberScrollState())   // בלי זה התוכן הארוך נחתך
+                .padding(horizontal = 22.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Row(
@@ -505,12 +513,17 @@ fun PermissionsSheet(onDismiss: () -> Unit, onChanged: () -> Unit) {
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
         containerColor = Lux.Surface,
         contentColor = Lux.Text,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
-            Modifier.padding(horizontal = 22.dp).padding(bottom = 40.dp),
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             Text("הרשאות במכשיר", fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.Text)
