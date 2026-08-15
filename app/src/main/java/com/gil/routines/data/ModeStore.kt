@@ -36,7 +36,7 @@ object ModeStore {
 
     fun defaults(): List<Mode> = listOf(
         Mode(
-            id = "sleep", name = "שינה", colorArgb = 0xFF4A4EBFL, enabled = true,
+            id = "sleep", name = "שינה", colorArgb = 0xFF7B84D8L, enabled = true,
             start = hm(22, 45), end = hm(6, 30), days = setOf(1, 2, 3, 4, 5, 6, 7),
             actions = setOf(Actions.DND, Actions.CALL_GUARD, Actions.MUTE, Actions.BRIGHTNESS),
             call = CallConfig(
@@ -48,7 +48,7 @@ object ModeStore {
             )
         ),
         Mode(
-            id = "work", name = "עבודה", colorArgb = 0xFF0E7C9BL, enabled = true,
+            id = "work", name = "עבודה", colorArgb = 0xFF58A6A6L, enabled = true,
             start = hm(8, 30), end = hm(17, 15), days = setOf(1, 2, 3, 4, 5),
             actions = setOf(Actions.DND),
             call = CallConfig(
@@ -60,7 +60,7 @@ object ModeStore {
             )
         ),
         Mode(
-            id = "meeting", name = "ישיבה", colorArgb = 0xFFA33370L, enabled = true,
+            id = "meeting", name = "ישיבה", colorArgb = 0xFFC9A24AL, enabled = true,
             start = hm(10, 0), end = hm(11, 30), days = setOf(1, 3, 5),
             actions = setOf(Actions.DND, Actions.CALL_GUARD, Actions.MUTE),
             call = CallConfig(
@@ -72,7 +72,7 @@ object ModeStore {
             )
         ),
         Mode(
-            id = "drive", name = "נהיגה", colorArgb = 0xFFC75F2EL, enabled = false,
+            id = "drive", name = "נהיגה", colorArgb = 0xFFC8815AL, enabled = false,
             start = hm(17, 30), end = hm(18, 15), days = setOf(1, 2, 3, 4, 5),
             actions = setOf(Actions.CALL_GUARD),
             call = CallConfig(
@@ -84,7 +84,7 @@ object ModeStore {
             )
         ),
         Mode(
-            id = "focus", name = "ריכוז", colorArgb = 0xFF6A57A8L, enabled = false,
+            id = "focus", name = "ריכוז", colorArgb = 0xFF9B85C9L, enabled = false,
             start = hm(14, 0), end = hm(16, 0), days = setOf(1, 2, 3, 4, 5),
             actions = setOf(Actions.DND, Actions.CALL_GUARD),
             call = CallConfig(

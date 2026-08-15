@@ -38,7 +38,12 @@ data class Mode(
     /** 1=ראשון .. 7=שבת, בהתאם ל-java.util.Calendar.DAY_OF_WEEK */
     val days: Set<Int> = setOf(1, 2, 3, 4, 5, 6, 7),
     val actions: Set<String> = emptySet(),
-    val call: CallConfig = CallConfig()
+    val call: CallConfig = CallConfig(),
+    /**
+     * עקיפה ידנית של לוח הזמנים.
+     * null = לפי הלוח, true = דלוק עכשיו בלי קשר לשעה, false = כבוי עכשיו.
+     */
+    val manualOverride: Boolean? = null
 ) {
     /** נכון גם לחלון שחוצה חצות, למשל 22:45–06:30 */
     fun coversMinute(m: MinuteOfDay): Boolean = when {
@@ -52,6 +57,7 @@ data class Mode(
      * שגרת שינה של "ראשון 22:45" ממשיכה לפעול בשתיים לפנות בוקר ביום שני.
      */
     fun isActiveAt(minuteOfDay: MinuteOfDay, dayOfWeek: Int): Boolean {
+        manualOverride?.let { return it }          // עקיפה ידנית גוברת על הכל
         if (!enabled || !coversMinute(minuteOfDay)) return false
         val owningDay = if (start <= end || minuteOfDay >= start) dayOfWeek else prevDay(dayOfWeek)
         return days.contains(owningDay)
@@ -80,6 +86,7 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
     put("end", end)
     put("days", JSONArray(days.toList()))
     put("actions", JSONArray(actions.toList()))
+    put("override", manualOverride ?: JSONObject.NULL)
     put("call", JSONObject().apply {
         put("handling", call.handling.name)
         put("sendSms", call.sendSms)
@@ -103,6 +110,7 @@ fun modeFromJson(o: JSONObject): Mode {
         end = o.optInt("end", 0),
         days = o.optJSONArray("days").toIntSet(),
         actions = o.optJSONArray("actions").toStringSet(),
+        manualOverride = if (o.isNull("override")) null else o.optBoolean("override"),
         call = CallConfig(
             handling = runCatching { CallHandling.valueOf(c.optString("handling", "REJECT")) }
                 .getOrDefault(CallHandling.REJECT),

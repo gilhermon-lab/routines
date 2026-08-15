@@ -34,7 +34,9 @@ class CallGuardService : CallScreeningService() {
         if (number.isBlank()) { respondAllow(details); return }   // מספר חסוי — לא מנסים לחכם
 
         // אנשי קשר עוברים, אם המצב מתיר
-        if (mode.call.allowContacts && isContact(number)) { respondAllow(details); return }
+        if (mode.call.allowContacts && isContact(number)) {
+            log(number, mode.name, "צלצל — איש קשר", false); respondAllow(details); return
+        }
 
         // פריצה בחיוג חוזר
         val bt = mode.call.breakthrough
@@ -42,13 +44,25 @@ class CallGuardService : CallScreeningService() {
             val count = CallAttemptLog.recordAndCount(this, number, bt.windowMinutes)
             if (count >= bt.attempts) {
                 CallAttemptLog.clear(this, number)
+                log(number, mode.name, "צלצל — פריצה אחרי $count חיוגים", false)
                 respondAllow(details)
                 return
             }
         }
 
         block(details, mode)
-        maybeSendSms(mode, number)
+        val sent = maybeSendSms(mode, number)
+        val what = if (mode.call.handling == CallHandling.SILENCE) "הושתקה" else "נדחתה"
+        log(number, mode.name, what, sent)
+    }
+
+    private fun log(number: String, modeName: String, outcome: String, smsSent: Boolean) {
+        runCatching {
+            CallLogStore.add(
+                this,
+                CallEvent(System.currentTimeMillis(), number, modeName, outcome, smsSent)
+            )
+        }
     }
 
     private fun respondAllow(details: Call.Details) {
@@ -67,12 +81,13 @@ class CallGuardService : CallScreeningService() {
         respondToCall(details, response)
     }
 
-    private fun maybeSendSms(mode: Mode, number: String) {
-        if (!mode.call.sendSms || mode.call.message.isBlank()) return
-        if (!hasPermission(Manifest.permission.SEND_SMS)) return
-        if (!CallAttemptLog.shouldSendSms(this, number, mode.call.smsCooldownHours)) return
+    /** מחזיר האם ההודעה אכן נשלחה, כדי שהיומן ישקף את האמת */
+    private fun maybeSendSms(mode: Mode, number: String): Boolean {
+        if (!mode.call.sendSms || mode.call.message.isBlank()) return false
+        if (!hasPermission(Manifest.permission.SEND_SMS)) return false
+        if (!CallAttemptLog.shouldSendSms(this, number, mode.call.smsCooldownHours)) return false
 
-        runCatching {
+        return runCatching {
             val sms = getSystemService(SmsManager::class.java)
             val parts = sms.divideMessage(mode.call.message)
             if (parts.size == 1) {
@@ -81,7 +96,8 @@ class CallGuardService : CallScreeningService() {
                 sms.sendMultipartTextMessage(number, null, parts, null, null)
             }
             CallAttemptLog.markSmsSent(this, number)
-        }.onFailure { Log.w(TAG, "שליחת ההודעה נכשלה", it) }
+            true
+        }.onFailure { Log.w(TAG, "שליחת ההודעה נכשלה", it) }.getOrDefault(false)
     }
 
     /** מספרים מגיעים בפורמטים שונים, ולכן PhoneLookup ולא השוואת מחרוזות */
