@@ -78,17 +78,35 @@ class MainActivity : ComponentActivity() {
         ModeApplier.applyCurrentState(this)
 
         setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Lux.Brass,
-                    onPrimary = Lux.Bg,
-                    background = Lux.Bg,
-                    surface = Lux.Surface,
-                    onSurface = Lux.Text,
-                    onBackground = Lux.Text
-                )
+            // הפלטה נקבעת לפי השעה, ונכפית לכהה כשמצב שמחשיך את המסך פעיל
+            var now by remember { mutableStateOf(java.time.LocalTime.now()) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    kotlinx.coroutines.delay(60_000)
+                    now = java.time.LocalTime.now()
+                }
+            }
+            val dimming = remember(now) {
+                RoutineEngine.activeModes(this@MainActivity).any { it.screen.dimEnabled }
+            }
+            val night = dimming || now.hour >= 19 || now.hour < 7
+            val palette = if (night) LuxNight else LuxDay
+
+            CompositionLocalProvider(
+                LocalPalette provides palette,
+                LocalLayoutDirection provides LayoutDirection.Rtl
             ) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                MaterialTheme(
+                    colorScheme = if (night) darkColorScheme(
+                        primary = palette.Brass, onPrimary = palette.Bg,
+                        background = palette.Bg, surface = palette.Surface,
+                        onSurface = palette.Text, onBackground = palette.Text
+                    ) else lightColorScheme(
+                        primary = palette.Brass, onPrimary = Color.White,
+                        background = palette.Bg, surface = palette.Surface,
+                        onSurface = palette.Text, onBackground = palette.Text
+                    )
+                ) {
                     RoutinesScreen()
                 }
             }
@@ -651,6 +669,15 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                     }
                                 }
                             }
+
+                            val allUpcoming = remember(draft.calendar) {
+                                CalendarReader.upcomingAll(ctx, draft.calendar)
+                            }
+                            Text(
+                                "נמצאו ${allUpcoming.size} אירועים ב-7 הימים הקרובים ביומנים שנבחרו" +
+                                    if (allUpcoming.isEmpty()) " — נסה לבטל את בחירת היומנים כדי לקרוא מכולם." else "",
+                                fontSize = 11.sp, color = Lux.Faint, lineHeight = 16.sp
+                            )
 
                             val next = remember(draft.calendar) {
                                 CalendarReader.nextMatching(ctx, draft.calendar)
