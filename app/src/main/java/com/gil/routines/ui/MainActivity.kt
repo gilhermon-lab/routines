@@ -130,7 +130,14 @@ class MainActivity : ComponentActivity() {
 }
 
 /** למה המצב פעיל כרגע — או למה לא */
-data class ModeStatus(val live: Boolean, val label: String, val detail: String, val manual: Boolean)
+data class ModeStatus(
+    val live: Boolean,
+    val label: String,
+    val detail: String,
+    val manual: Boolean,
+    /** מה קורה ביומן של המצב, אם טריגר היומן דלוק */
+    val calendarNote: String? = null
+)
 
 fun modeStatus(ctx: android.content.Context, m: Mode): ModeStatus {
     val now = java.time.ZonedDateTime.now()
@@ -141,19 +148,32 @@ fun modeStatus(ctx: android.content.Context, m: Mode): ModeStatus {
         runCatching { CalendarReader.activeNow(ctx, m.calendar) }.getOrNull()
     } else null
 
+    // מה מצב היומן — גם כשהמצב עצמו לא פעיל, חשוב לדעת שהוא מנוטר
+    val calNote: String? = if (!m.calendar.enabled) null else {
+        val clock = SimpleDateFormat("HH:mm", Locale.getDefault())
+        when {
+            event != null -> "יומן · ${event.title}"
+            else -> {
+                val next = runCatching { CalendarReader.nextMatching(ctx, m.calendar) }.getOrNull()
+                if (next != null) "יומן · הבא ${clock.format(Date(next.begin))} — ${next.title}"
+                else "יומן · אין אירוע קרוב"
+            }
+        }
+    }
+
     return when {
         m.manualOverride == true ->
-            ModeStatus(true, "פעיל ידנית", "יישאר פעיל עד שתכבה אותו", true)
+            ModeStatus(true, "פעיל ידנית", "יישאר פעיל עד שתכבה אותו", true, calNote)
         m.manualOverride == false ->
-            ModeStatus(false, "מושהה ידנית", "יחזור לפעול לפי הלוח בסוף החלון", true)
+            ModeStatus(false, "מושהה ידנית", "יחזור לפעול לפי הלוח בסוף החלון", true, calNote)
         !m.enabled ->
-            ModeStatus(false, "כבוי", "המצב מושבת לגמרי", false)
+            ModeStatus(false, "כבוי", "המצב מושבת לגמרי", false, calNote)
         event != null ->
-            ModeStatus(true, "פעיל לפי יומן", event.title, false)
+            ModeStatus(true, "פעיל לפי יומן", event.title, false, calNote)
         bySchedule ->
-            ModeStatus(true, "פעיל לפי הלוח", fmt(m.start) + " — " + fmt(m.end), false)
+            ModeStatus(true, "פעיל לפי הלוח", fmt(m.start) + " — " + fmt(m.end), false, calNote)
         else ->
-            ModeStatus(false, "לא פעיל כרגע", "החלון הבא: " + fmt(m.start) + " — " + fmt(m.end), false)
+            ModeStatus(false, "לא פעיל כרגע", "החלון הבא: " + fmt(m.start) + " — " + fmt(m.end), false, calNote)
     }
 }
 
@@ -240,9 +260,15 @@ fun RoutinesScreen(themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit) {
                             "שגרות", fontSize = 22.sp, fontWeight = FontWeight.Light,
                             color = Lux.text, letterSpacing = 1.sp
                         )
+                        val watching = modes.count { it.enabled && it.calendar.enabled }
                         Text(
-                            if (active.isEmpty()) "אין מצב פעיל"
-                            else active.joinToString(" · ") { it.name },
+                            buildString {
+                                append(
+                                    if (active.isEmpty()) "אין מצב פעיל"
+                                    else active.joinToString(" · ") { it.name }
+                                )
+                                if (watching > 0) append("  ·  יומן מנוטר")
+                            },
                             fontSize = 11.sp,
                             color = if (active.isEmpty()) Lux.faint else Lux.brass
                         )
@@ -497,6 +523,19 @@ fun ModeRow(mode: Mode, live: Boolean, onToggle: () -> Unit, onOpen: () -> Unit)
                     else -> Lux.faint
                 }
             )
+            st.calendarNote?.let { note ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    modifier = Modifier.padding(top = 2.dp)
+                ) {
+                    Icon(
+                        Icons.Outlined.CalendarMonth, null,
+                        tint = Lux.brass, modifier = Modifier.size(12.dp)
+                    )
+                    Text(note, fontSize = 11.sp, color = Lux.muted, maxLines = 1)
+                }
+            }
         }
 
         Switch(checked = mode.enabled, onCheckedChange = { onToggle() }, colors = luxSwitch())
@@ -570,6 +609,12 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     Column(Modifier.weight(1f)) {
                         Text(st.label, fontSize = 14.sp, color = Lux.text)
                         Text(st.detail, fontSize = 11.sp, color = Lux.muted, lineHeight = 16.sp)
+                        if (st.calendarNote != null && !st.label.contains("יומן")) {
+                            Text(
+                                st.calendarNote, fontSize = 11.sp, color = Lux.brass,
+                                lineHeight = 16.sp, modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
                     }
                 }
 
