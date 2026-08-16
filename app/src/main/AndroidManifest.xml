@@ -66,6 +66,14 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".engine.AlarmChangeReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.app.action.NEXT_ALARM_CLOCK_CHANGED" />
+            </intent-filter>
+        </receiver>
+
         <!-- ווידג'ט מסך הבית -->
         <receiver
             android:name=".widget.ModeWidget"

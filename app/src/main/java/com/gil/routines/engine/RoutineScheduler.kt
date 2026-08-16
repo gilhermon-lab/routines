@@ -27,7 +27,31 @@ object RoutineScheduler {
             schedule(ctx, am, mode, mode.end, now, isStart = false)
 
             if (mode.calendar.enabled) scheduleCalendar(ctx, am, mode)
+            if (mode.screen.endOnAlarm) scheduleAlarmEnd(ctx, am, mode)
         }
+    }
+
+    /**
+     * סיום המצב כשהשעון המעורר מצלצל.
+     *
+     * AlarmManager.getNextAlarmClock מחזיר את זמן ההשכמה הבא של המכשיר,
+     * כך שאין צורך בגישה להתראות ואין תלות באפליקציית שעון מסוימת.
+     */
+    private fun scheduleAlarmEnd(ctx: Context, am: AlarmManager, mode: Mode) {
+        val next = am.nextAlarmClock ?: return
+        val fireAt = next.triggerTime + 1_000L      // רגע אחרי הצלצול
+        if (fireAt <= System.currentTimeMillis()) return
+
+        val intent = Intent(ctx, RoutineAlarmReceiver::class.java)
+            .putExtra(EXTRA_MODE_ID, mode.id)
+            .putExtra(EXTRA_ALARM_END, true)
+        val pi = PendingIntent.getBroadcast(
+            ctx, (mode.id + ":alarmend").hashCode(), intent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+        val canExact = Build.VERSION.SDK_INT < Build.VERSION_CODES.S || am.canScheduleExactAlarms()
+        if (canExact) am.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt, pi)
+        else am.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, fireAt, pi)
     }
 
     /**
@@ -83,6 +107,7 @@ object RoutineScheduler {
         return if (today.isAfter(now)) today else today.plusDays(1)
     }
 
+    const val EXTRA_ALARM_END = "alarm_end"
     const val EXTRA_MODE_ID = "mode_id"
     const val EXTRA_IS_START = "is_start"
 }

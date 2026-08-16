@@ -10,6 +10,13 @@ import java.time.ZonedDateTime
 /** נקרא בהתחלה ובסיום של כל מצב: מפעיל את הפעולות ומתזמן את המופע הבא */
 class RoutineAlarmReceiver : BroadcastReceiver() {
     override fun onReceive(ctx: Context, intent: Intent) {
+        // השעון המעורר צלצל — משהים את המצב עד סוף החלון הנוכחי
+        if (intent.getBooleanExtra(RoutineScheduler.EXTRA_ALARM_END, false)) {
+            intent.getStringExtra(RoutineScheduler.EXTRA_MODE_ID)?.let { id ->
+                ModeStore.update(ctx, id) { it.copy(manualOverride = false) }
+            }
+        }
+
         clearStaleOverrides(ctx)
         ModeApplier.applyCurrentState(ctx)
         RoutineScheduler.rescheduleAll(ctx)

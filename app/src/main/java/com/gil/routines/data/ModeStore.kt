@@ -47,7 +47,11 @@ object ModeStore {
                 smsCooldownHours = 6,
                 breakthrough = Breakthrough(true, 3, 10)
             ),
-            screen = ScreenConfig(dimEnabled = true, brightnessPercent = 3, timeoutEnabled = true, timeoutSeconds = 15)
+            screen = ScreenConfig(
+                dimEnabled = true, brightnessPercent = 3,
+                timeoutEnabled = true, timeoutSeconds = 15,
+                endOnAlarm = true
+            )
         ),
         Mode(
             id = "work", name = "עבודה", colorArgb = 0xFF1E8E8EL, enabled = true,

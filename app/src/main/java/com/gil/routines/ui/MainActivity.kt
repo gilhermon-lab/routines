@@ -570,18 +570,19 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     .padding(horizontal = 22.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp)
-                ) {
-                    Box(
-                        Modifier.size(46.dp)
-                            .background(color.copy(alpha = 0.18f), RoundedCornerShape(15.dp))
-                            .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(15.dp)),
-                        contentAlignment = Alignment.Center
-                    ) { Icon(iconFor(draft.id), null, tint = color, modifier = Modifier.size(23.dp)) }
-                    Text(draft.name, fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.text)
-                }
+                val stHero = modeStatus(ctx, draft)
+                ModeHero(
+                    modeId = draft.id,
+                    title = draft.name,
+                    status = stHero,
+                    color = color,
+                    onPrimary = {
+                        draft = draft.copy(
+                            manualOverride = if (stHero.live) false else true,
+                            enabled = true
+                        )
+                    }
+                )
 
                 // מצב נוכחי ומקורו — ידני, לוח או יומן
                 val st = modeStatus(ctx, draft)
@@ -1117,6 +1118,24 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                 }
                 ToggleRow("גווני אפור", draft.screen.grayscale) {
                     draft = draft.copy(screen = draft.screen.copy(grayscale = it))
+                }
+
+                ToggleRow("לסיים כשהשעון המעורר מצלצל", draft.screen.endOnAlarm) {
+                    draft = draft.copy(screen = draft.screen.copy(endOnAlarm = it))
+                }
+                if (draft.screen.endOnAlarm) {
+                    val nextAlarm = remember {
+                        runCatching {
+                            ctx.getSystemService(android.app.AlarmManager::class.java)
+                                .nextAlarmClock?.triggerTime
+                        }.getOrNull()
+                    }
+                    Text(
+                        if (nextAlarm != null)
+                            "ההשכמה הבאה: " + SimpleDateFormat("EEE HH:mm", Locale("he")).format(Date(nextAlarm))
+                        else "לא מוגדרת השכמה במכשיר כרגע",
+                        fontSize = 11.sp, color = Lux.faint
+                    )
                 }
                 if (draft.screen.nightLight || draft.screen.grayscale) {
                     Text(

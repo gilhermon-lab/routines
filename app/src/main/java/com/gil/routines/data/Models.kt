@@ -71,7 +71,9 @@ data class ScreenConfig(
     /** שניות עד כיבוי מסך */
     val timeoutSeconds: Int = 15,
     val nightLight: Boolean = false,   // דורש WRITE_SECURE_SETTINGS
-    val grayscale: Boolean = false     // דורש WRITE_SECURE_SETTINGS
+    val grayscale: Boolean = false,    // דורש WRITE_SECURE_SETTINGS
+    /** לסיים את המצב ברגע שהשעון המעורר של המכשיר מצלצל */
+    val endOnAlarm: Boolean = false
 )
 
 /** דקות מחצות, 0..1439 — מאפשר דיוק של דקה ולא רק שעות עגולות */
@@ -147,6 +149,7 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
         put("toSec", screen.timeoutSeconds)
         put("night", screen.nightLight)
         put("gray", screen.grayscale)
+        put("endAlarm", screen.endOnAlarm)
     })
     put("calWords", JSONArray(calendar.keywords))
     put("calRequire", calendar.requireKeyword)
@@ -190,7 +193,8 @@ fun modeFromJson(o: JSONObject): Mode {
                 timeoutEnabled = sc.optBoolean("toEn", false),
                 timeoutSeconds = sc.optInt("toSec", 15),
                 nightLight = sc.optBoolean("night", false),
-                grayscale = sc.optBoolean("gray", false)
+                grayscale = sc.optBoolean("gray", false),
+                endOnAlarm = sc.optBoolean("endAlarm", false)
             )
         },
         calendar = CalendarTrigger(
