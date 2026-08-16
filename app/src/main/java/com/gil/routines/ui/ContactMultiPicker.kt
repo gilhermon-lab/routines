@@ -51,31 +51,31 @@ fun ContactMultiPicker(
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
         Surface(
-            color = Lux.surface,
+            color = Lux.Surface,
             shape = RoundedCornerShape(24.dp),
             modifier = Modifier.fillMaxWidth(0.94f).fillMaxHeight(0.86f)
         ) {
             Column(Modifier.padding(18.dp)) {
 
-                Text("בחירת אנשי קשר", fontSize = 20.sp, fontWeight = FontWeight.Light, color = Lux.text)
+                Text("בחירת אנשי קשר", fontSize = 20.sp, fontWeight = FontWeight.Light, color = Lux.Text)
                 Text(
                     "מי שייבחר יצלצל גם כשהמצב פעיל.",
-                    fontSize = 11.sp, color = Lux.faint
+                    fontSize = 11.sp, color = Lux.Faint
                 )
                 Spacer(Modifier.height(12.dp))
 
                 OutlinedTextField(
                     value = query,
                     onValueChange = { query = it },
-                    label = { Text("חיפוש", color = Lux.muted) },
+                    label = { Text("חיפוש", color = Lux.Muted) },
                     singleLine = true,
                     shape = RoundedCornerShape(14.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = Lux.brass,
-                        unfocusedBorderColor = Lux.line,
-                        focusedTextColor = Lux.text,
-                        unfocusedTextColor = Lux.text,
-                        cursorColor = Lux.brass
+                        focusedBorderColor = Lux.Brass,
+                        unfocusedBorderColor = Lux.Line,
+                        focusedTextColor = Lux.Text,
+                        unfocusedTextColor = Lux.Text,
+                        cursorColor = Lux.Brass
                     ),
                     modifier = Modifier.fillMaxWidth()
                 )
@@ -85,23 +85,23 @@ fun ContactMultiPicker(
                 Box(Modifier.weight(1f)) {
                     when {
                         all == null -> Text(
-                            "טוען אנשי קשר…", fontSize = 13.sp, color = Lux.faint,
+                            "טוען אנשי קשר…", fontSize = 13.sp, color = Lux.Faint,
                             modifier = Modifier.align(Alignment.Center)
                         )
                         list.isEmpty() -> Text(
                             if (all!!.isEmpty()) "לא נמצאו אנשי קשר. ודא שהרשאת אנשי הקשר אושרה."
                             else "אין תוצאה לחיפוש.",
-                            fontSize = 13.sp, color = Lux.faint, modifier = Modifier.align(Alignment.Center)
+                            fontSize = 13.sp, color = Lux.Faint, modifier = Modifier.align(Alignment.Center)
                         )
                         else -> LazyColumn(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                             items(list, key = { it.key }) { c ->
                                 val on = selected.contains(c.key)
                                 Row(
                                     Modifier.fillMaxWidth()
-                                        .background(Lux.bg, RoundedCornerShape(12.dp))
+                                        .background(Lux.Bg, RoundedCornerShape(12.dp))
                                         .border(
                                             1.dp,
-                                            if (on) accent.copy(alpha = 0.55f) else Lux.line,
+                                            if (on) accent.copy(alpha = 0.55f) else Lux.Line,
                                             RoundedCornerShape(12.dp)
                                         )
                                         .clickable {
@@ -117,14 +117,14 @@ fun ContactMultiPicker(
                                         },
                                         colors = CheckboxDefaults.colors(
                                             checkedColor = accent,
-                                            uncheckedColor = Lux.faint,
-                                            checkmarkColor = Lux.bg
+                                            uncheckedColor = Lux.Faint,
+                                            checkmarkColor = Lux.Bg
                                         )
                                     )
                                     Spacer(Modifier.width(6.dp))
                                     Column(Modifier.weight(1f)) {
-                                        Text(c.name, fontSize = 14.sp, color = Lux.text)
-                                        Text(c.number, fontSize = 11.sp, color = Lux.faint)
+                                        Text(c.name, fontSize = 14.sp, color = Lux.Text)
+                                        Text(c.number, fontSize = 11.sp, color = Lux.Faint)
                                     }
                                 }
                             }
@@ -139,7 +139,7 @@ fun ContactMultiPicker(
                         onClick = onDismiss,
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.muted)
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Muted)
                     ) { Text("ביטול", fontSize = 14.sp) }
 
                     Button(
@@ -150,7 +150,7 @@ fun ContactMultiPicker(
                         modifier = Modifier.weight(1f).height(48.dp),
                         shape = RoundedCornerShape(14.dp),
                         colors = ButtonDefaults.buttonColors(
-                            containerColor = accent, contentColor = Lux.bg
+                            containerColor = accent, contentColor = Lux.Bg
                         )
                     ) { Text("אישור (${selected.size})", fontSize = 14.sp) }
                 }
