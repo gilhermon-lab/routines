@@ -22,10 +22,10 @@ val LuxNight = Palette(
 )
 
 val LuxDay = Palette(
-    bg = Color(0xFFF3F0E9), surface = Color(0xFFFFFFFF), surfaceHi = Color(0xFFFAF7F1),
-    line = Color(0xFFE0D9CB), text = Color(0xFF14161B), muted = Color(0xFF5A5E6E),
-    faint = Color(0xFF8A8E9C), brass = Color(0xFF9A7418), brassSoft = Color(0xFFB98F2C),
-    brassDim = Color(0xFFD8C89E), ok = Color(0xFF2C7A5A), dark = false
+    bg = Color(0xFFEDEAE2), surface = Color(0xFFFFFFFF), surfaceHi = Color(0xFFF7F3EA),
+    line = Color(0xFFCFC5B2), text = Color(0xFF101218), muted = Color(0xFF45495A),
+    faint = Color(0xFF6E7385), brass = Color(0xFF8A6410), brassSoft = Color(0xFFA87C1C),
+    brassDim = Color(0xFFC9B47A), ok = Color(0xFF1E6B4A), dark = false
 )
 
 enum class ThemeMode { AUTO, DAY, NIGHT }

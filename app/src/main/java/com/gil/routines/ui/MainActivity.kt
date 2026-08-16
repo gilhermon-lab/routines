@@ -351,16 +351,16 @@ fun DayDial(modes: List<Mode>, active: List<Mode>, meetingSpans: List<Pair<Float
                 val sweep = (((m.end - m.start) + 1440) % 1440) / 1440f * 360f
 
                 drawArc(
-                    color = col.copy(alpha = 0.10f), startAngle = 0f, sweepAngle = 360f,
+                    color = col.copy(alpha = 0.16f), startAngle = 0f, sweepAngle = 360f,
                     useCenter = false, topLeft = Offset(c.x - r, c.y - r),
-                    size = Size(r * 2, r * 2), style = Stroke(width = 6f)
+                    size = Size(r * 2, r * 2), style = Stroke(width = 9f)
                 )
                 drawArc(
-                    color = col.copy(alpha = if (isLive) 1f else 0.45f),
+                    color = col.copy(alpha = if (isLive) 1f else 0.72f),
                     startAngle = m.start / 1440f * 360f - 90f, sweepAngle = sweep,
                     useCenter = false, topLeft = Offset(c.x - r, c.y - r),
                     size = Size(r * 2, r * 2),
-                    style = Stroke(width = if (isLive) 9f else 6f, cap = StrokeCap.Round)
+                    style = Stroke(width = if (isLive) 13f else 10f, cap = StrokeCap.Round)
                 )
             }
 
@@ -374,7 +374,7 @@ fun DayDial(modes: List<Mode>, active: List<Mode>, meetingSpans: List<Pair<Float
                     useCenter = false,
                     topLeft = Offset(c.x - r, c.y - r),
                     size = Size(r * 2, r * 2),
-                    style = Stroke(width = 7f, cap = StrokeCap.Round)
+                    style = Stroke(width = 10f, cap = StrokeCap.Round)
                 )
             }
 
@@ -566,11 +566,31 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                 fontSize = 11.sp, color = Lux.brass, lineHeight = 17.sp
                             )
                         } else {
-                            Text(
-                                if (draft.calendar.calendarIds.isEmpty()) "כל היומנים" else "יומנים נבחרים",
-                                fontSize = 11.sp, color = Lux.muted
-                            )
-                            cals.forEach { cal ->
+                            // כותרת מתקפלת — הרשימה ארוכה ולא צריך אותה פתוחה תמיד
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .background(Lux.surfaceHi, RoundedCornerShape(12.dp))
+                                    .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
+                                    .clickable { calsOpen = !calsOpen }
+                                    .padding(horizontal = 12.dp, vertical = 11.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text("יומנים", fontSize = 13.sp, color = Lux.text)
+                                    Text(
+                                        if (draft.calendar.calendarIds.isEmpty())
+                                            "כל היומנים (${cals.size})"
+                                        else "${draft.calendar.calendarIds.size} מתוך ${cals.size} נבחרו",
+                                        fontSize = 11.sp, color = Lux.faint
+                                    )
+                                }
+                                Text(
+                                    if (calsOpen) "הסתרה" else "הרחבה",
+                                    fontSize = 12.sp, color = color
+                                )
+                            }
+
+                            if (calsOpen) cals.forEach { cal ->
                                 val on = draft.calendar.calendarIds.contains(cal.id)
                                 Row(
                                     Modifier.fillMaxWidth()
