@@ -1008,10 +1008,10 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                 append(if (draft.call.handling == CallHandling.SILENCE) "תושתק בשקט" else "תידחה")
                                 append(if (draft.call.sendSms) ", ותישלח ההודעה שלמעלה." else ", בלי הודעה.")
                                 when (draft.call.contactPolicy) {
-                                    ContactPolicy.ALL -> append(" כל אנשי הקשר יצלצלו כרגיל.")
+                                    ContactPolicy.ALL -> append(" אנשי קשר יצלצלו כרגיל.")
                                     ContactPolicy.LIST -> append(
-                                        if (draft.call.allowed.isEmpty()) " אף אחד לא ברשימת ההיתר."
-                                        else " יעברו: " + draft.call.allowed.joinToString(", ") { it.name } + "."
+                                        if (draft.call.allowed.isEmpty()) " אף אחד לא יעבור — הרשימה ריקה."
+                                        else " ${draft.call.allowed.size} אנשי קשר ברשימה יעברו."
                                     )
                                     ContactPolicy.NONE -> append(" גם אנשי קשר ייחסמו.")
                                 }
