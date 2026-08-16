@@ -129,6 +129,34 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/** למה המצב פעיל כרגע — או למה לא */
+data class ModeStatus(val live: Boolean, val label: String, val detail: String, val manual: Boolean)
+
+fun modeStatus(ctx: android.content.Context, m: Mode): ModeStatus {
+    val now = java.time.ZonedDateTime.now()
+    val minute = now.hour * 60 + now.minute
+    val day = now.dayOfWeek.value % 7 + 1
+    val bySchedule = m.copy(manualOverride = null).isActiveAt(minute, day)
+    val event = if (m.calendar.enabled) {
+        runCatching { CalendarReader.activeNow(ctx, m.calendar) }.getOrNull()
+    } else null
+
+    return when {
+        m.manualOverride == true ->
+            ModeStatus(true, "פעיל ידנית", "יישאר פעיל עד שתכבה אותו", true)
+        m.manualOverride == false ->
+            ModeStatus(false, "מושהה ידנית", "יחזור לפעול לפי הלוח בסוף החלון", true)
+        !m.enabled ->
+            ModeStatus(false, "כבוי", "המצב מושבת לגמרי", false)
+        event != null ->
+            ModeStatus(true, "פעיל לפי יומן", event.title, false)
+        bySchedule ->
+            ModeStatus(true, "פעיל לפי הלוח", fmt(m.start) + " — " + fmt(m.end), false)
+        else ->
+            ModeStatus(false, "לא פעיל כרגע", "החלון הבא: " + fmt(m.start) + " — " + fmt(m.end), false)
+    }
+}
+
 /* ── איורים ── */
 
 fun iconFor(id: String): ImageVector = when (id) {
@@ -460,11 +488,15 @@ fun ModeRow(mode: Mode, live: Boolean, onToggle: () -> Unit, onOpen: () -> Unit)
                 "${fmt(mode.start)} — ${fmt(mode.end)}   ${dayLabels(mode.days)}",
                 fontSize = 12.sp, color = Lux.faint, letterSpacing = 0.5.sp
             )
-            when (mode.manualOverride) {
-                true -> Text("פעיל ידנית", fontSize = 11.sp, color = Lux.brass, letterSpacing = 1.sp)
-                false -> Text("מושהה עד סוף החלון", fontSize = 11.sp, color = Lux.faint, letterSpacing = 1.sp)
-                else -> if (live) Text("פעיל עכשיו", fontSize = 11.sp, color = color, letterSpacing = 1.sp)
-            }
+            val st = modeStatus(LocalContext.current, mode)
+            Text(
+                st.label, fontSize = 11.sp, letterSpacing = 1.sp,
+                color = when {
+                    st.manual -> Lux.brass
+                    st.live -> color
+                    else -> Lux.faint
+                }
+            )
         }
 
         Switch(checked = mode.enabled, onCheckedChange = { onToggle() }, colors = luxSwitch())
@@ -510,6 +542,35 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         contentAlignment = Alignment.Center
                     ) { Icon(iconFor(draft.id), null, tint = color, modifier = Modifier.size(23.dp)) }
                     Text(draft.name, fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.text)
+                }
+
+                // מצב נוכחי ומקורו — ידני, לוח או יומן
+                val st = modeStatus(ctx, draft)
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(
+                            if (st.live) color.copy(alpha = 0.12f) else Lux.bg,
+                            RoundedCornerShape(14.dp)
+                        )
+                        .border(
+                            1.dp,
+                            if (st.live) color.copy(alpha = 0.5f) else Lux.line,
+                            RoundedCornerShape(14.dp)
+                        )
+                        .padding(14.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    Box(
+                        Modifier.size(10.dp).background(
+                            if (st.live) color else Lux.faint,
+                            RoundedCornerShape(5.dp)
+                        )
+                    )
+                    Column(Modifier.weight(1f)) {
+                        Text(st.label, fontSize = 14.sp, color = Lux.text)
+                        Text(st.detail, fontSize = 11.sp, color = Lux.muted, lineHeight = 16.sp)
+                    }
                 }
 
                 SectionHeader(Icons.Outlined.Tune, "עכשיו", top = 14)
@@ -661,11 +722,12 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             if (draft.calendar.requireKeyword) {
                                 var newWord by remember { mutableStateOf("") }
 
+                                draft.calendar.keywords.chunked(3).forEach { rowWords ->
                                 Row(
                                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
-                                    draft.calendar.keywords.take(4).forEach { w ->
+                                    rowWords.forEach { w ->
                                         Row(
                                             Modifier
                                                 .background(color.copy(alpha = 0.16f), RoundedCornerShape(99.dp))
@@ -685,6 +747,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                             Text("×", fontSize = 13.sp, color = Lux.faint)
                                         }
                                     }
+                                }
                                 }
 
                                 Row(
