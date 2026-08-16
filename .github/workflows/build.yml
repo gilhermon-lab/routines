@@ -43,6 +43,9 @@ jobs:
             echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Build stamp
+        run: echo "BUILD_STAMP=$(date -u +%d/%m\ %H:%M) ${GITHUB_SHA:0:7}" >> "$GITHUB_ENV"
+
       - name: Build signed release
         if: steps.ks.outputs.signed == 'true'
         env:

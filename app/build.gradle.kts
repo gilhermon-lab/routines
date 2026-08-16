@@ -18,6 +18,9 @@ android {
         targetSdk = 35
         versionCode = 1
         versionName = "0.1"
+
+        // מזהה בנייה, כדי שאפשר יהיה לראות באפליקציה איזו גרסה מותקנת
+        buildConfigField("String", "BUILD_STAMP", "\"" + (System.getenv("BUILD_STAMP") ?: "local") + "\"")
     }
 
     signingConfigs {
@@ -45,7 +48,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
     kotlinOptions { jvmTarget = "17" }
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
 
     // assembleRelease מריץ lint קפדני שנוטה להפיל בנייה על אזהרות בלבד.
     // לאפליקציה אישית שלא מגיעה לחנות זה רעש, לא ערך.

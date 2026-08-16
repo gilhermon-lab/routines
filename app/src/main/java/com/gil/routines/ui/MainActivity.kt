@@ -57,6 +57,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.gil.routines.BuildConfig
 import com.gil.routines.calendar.CalendarReader
 import com.gil.routines.call.CallLogStore
 import com.gil.routines.data.*
@@ -273,6 +274,12 @@ fun RoutinesScreen(themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit) {
                     Icons.Outlined.MonitorHeart, "בדיקת מערכת",
                     "מה חסם הודעה, ושליחת הודעת בדיקה"
                 ) { showDiag = true }
+
+                Text(
+                    "בנייה ${BuildConfig.BUILD_STAMP}",
+                    fontSize = 10.sp, color = Lux.faint,
+                    modifier = Modifier.padding(top = 14.dp)
+                )
             }
         }
     }
