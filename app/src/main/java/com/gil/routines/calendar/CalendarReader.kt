@@ -73,7 +73,13 @@ object CalendarReader {
         }.getOrNull().orEmpty()
     }
 
-    /** כל האירועים הרלוונטיים בטווח נתון, ממוינים לפי זמן התחלה */
+    /**
+     * כל האירועים בטווח נתון.
+     *
+     * השאילתה בנויה הגנתית בכוונה: מתאמי סנכרון שונים תומכים בעמודות שונות,
+     * ועמודה חסרה מפילה את כל השאילתה ומחזירה ריק בשקט. לכן אין WHERE כלל,
+     * והסינון נעשה בקוד על עמודות שנקראות בזהירות.
+     */
     fun busyEvents(ctx: Context, calendarIds: Set<Long>, from: Long, to: Long): List<BusyEvent> {
         if (!hasPermission(ctx)) return emptyList()
 
@@ -81,42 +87,51 @@ object CalendarReader {
         ContentUris.appendId(uri, from)
         ContentUris.appendId(uri, to)
 
-        val cols = arrayOf(
+        val full = arrayOf(
             CalendarContract.Instances.TITLE,
             CalendarContract.Instances.BEGIN,
             CalendarContract.Instances.END,
             CalendarContract.Instances.CALENDAR_ID,
-            CalendarContract.Instances.EVENT_ID
+            CalendarContract.Instances.EVENT_ID,
+            CalendarContract.Instances.ALL_DAY,
+            CalendarContract.Instances.STATUS,
+            CalendarContract.Instances.SELF_ATTENDEE_STATUS
         )
+        val minimal = full.copyOfRange(0, 5)
 
-        // אין סינון לפי "עסוק": מילות המפתח והאישור הידני מסננים טוב יותר,
-        // וסימון "מותנה" על ישיבה אמיתית היה גורם לה ליפול.
-        val where = buildString {
-            append("${CalendarContract.Instances.ALL_DAY}=0")
-            append(" AND ${CalendarContract.Instances.STATUS}!=${CalendarContract.Events.STATUS_CANCELED}")
-            append(" AND ${CalendarContract.Instances.SELF_ATTENDEE_STATUS}!=${CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED}")
-        }
-
-        return runCatching {
-            ctx.contentResolver.query(uri.build(), cols, where, null, "${CalendarContract.Instances.BEGIN} ASC")
+        fun run(cols: Array<String>): List<BusyEvent>? = runCatching {
+            ctx.contentResolver.query(uri.build(), cols, null, null, "${CalendarContract.Instances.BEGIN} ASC")
                 ?.use { c ->
                     buildList {
                         while (c.moveToNext()) {
                             val calId = c.getLong(3)
-                            if (calendarIds.isEmpty() || calendarIds.contains(calId)) {
-                                add(
-                                    BusyEvent(
-                                        id = c.getLong(4),
-                                        title = c.getString(0).orEmpty().ifBlank { "ללא כותרת" },
-                                        begin = c.getLong(1),
-                                        end = c.getLong(2)
-                                    )
+                            if (calendarIds.isNotEmpty() && !calendarIds.contains(calId)) continue
+
+                            val allDay = if (cols.size > 5) c.getInt(5) == 1 else false
+                            val status = if (cols.size > 6) c.getInt(6) else 0
+                            val self = if (cols.size > 7) c.getInt(7) else 0
+
+                            if (allDay) continue
+                            if (status == CalendarContract.Events.STATUS_CANCELED) continue
+                            if (self == CalendarContract.Attendees.ATTENDEE_STATUS_DECLINED) continue
+
+                            add(
+                                BusyEvent(
+                                    id = c.getLong(4),
+                                    title = c.getString(0).orEmpty().ifBlank { "ללא כותרת" },
+                                    begin = c.getLong(1),
+                                    end = c.getLong(2)
                                 )
-                            }
+                            )
                         }
                     }
                 }
-        }.getOrNull().orEmpty()
+        }.getOrNull()
+
+        // אם הפרויקציה המלאה נכשלה או החזירה ריק, מנסים שוב עם המינימום ההכרחי
+        val rich = run(full)
+        if (!rich.isNullOrEmpty()) return rich
+        return run(minimal).orEmpty()
     }
 
     /**

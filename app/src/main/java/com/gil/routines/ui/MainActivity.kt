@@ -78,17 +78,35 @@ class MainActivity : ComponentActivity() {
         ModeApplier.applyCurrentState(this)
 
         setContent {
-            MaterialTheme(
-                colorScheme = darkColorScheme(
-                    primary = Lux.Brass,
-                    onPrimary = Lux.Bg,
-                    background = Lux.Bg,
-                    surface = Lux.Surface,
-                    onSurface = Lux.Text,
-                    onBackground = Lux.Text
-                )
+            // הפלטה נקבעת לפי השעה, ונכפית לכהה כשמצב שמחשיך את המסך פעיל
+            var now by remember { mutableStateOf(java.time.LocalTime.now()) }
+            LaunchedEffect(Unit) {
+                while (true) {
+                    kotlinx.coroutines.delay(60_000)
+                    now = java.time.LocalTime.now()
+                }
+            }
+            val dimming = remember(now) {
+                RoutineEngine.activeModes(this@MainActivity).any { it.screen.dimEnabled }
+            }
+            val night = dimming || now.hour >= 19 || now.hour < 7
+            val palette = if (night) LuxNight else LuxDay
+
+            CompositionLocalProvider(
+                LocalPalette provides palette,
+                LocalLayoutDirection provides LayoutDirection.Rtl
             ) {
-                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                MaterialTheme(
+                    colorScheme = if (night) darkColorScheme(
+                        primary = palette.brass, onPrimary = palette.bg,
+                        background = palette.bg, surface = palette.surface,
+                        onSurface = palette.text, onBackground = palette.text
+                    ) else lightColorScheme(
+                        primary = palette.brass, onPrimary = Color.White,
+                        background = palette.bg, surface = palette.surface,
+                        onSurface = palette.text, onBackground = palette.text
+                    )
+                ) {
                     RoutinesScreen()
                 }
             }
@@ -114,20 +132,20 @@ fun SectionHeader(icon: ImageVector, text: String, top: Int = 22) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier.padding(top = top.dp, bottom = 10.dp)
     ) {
-        Icon(icon, null, tint = Lux.Brass, modifier = Modifier.size(15.dp))
-        Text(text, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Lux.Muted, letterSpacing = 2.sp)
-        HorizontalDivider(color = Lux.Line, modifier = Modifier.padding(start = 4.dp))
+        Icon(icon, null, tint = Lux.brass, modifier = Modifier.size(15.dp))
+        Text(text, fontSize = 11.sp, fontWeight = FontWeight.Medium, color = Lux.muted, letterSpacing = 2.sp)
+        HorizontalDivider(color = Lux.line, modifier = Modifier.padding(start = 4.dp))
     }
 }
 
 @Composable
 fun luxSwitch() = SwitchDefaults.colors(
-    checkedThumbColor = Lux.Bg,
-    checkedTrackColor = Lux.Brass,
-    checkedBorderColor = Lux.Brass,
-    uncheckedThumbColor = Lux.Faint,
-    uncheckedTrackColor = Lux.Surface,
-    uncheckedBorderColor = Lux.Line
+    checkedThumbColor = Lux.bg,
+    checkedTrackColor = Lux.brass,
+    checkedBorderColor = Lux.brass,
+    uncheckedThumbColor = Lux.faint,
+    uncheckedTrackColor = Lux.surface,
+    uncheckedBorderColor = Lux.line
 )
 
 /* ────────────────────────────────────────────── */
@@ -163,15 +181,15 @@ fun RoutinesScreen() {
         ModeWidget.refreshAll(ctx)
     }
 
-    Surface(color = Lux.Bg, modifier = Modifier.fillMaxSize()) {
+    Surface(color = Lux.bg, modifier = Modifier.fillMaxSize()) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().navigationBarsPadding().padding(horizontal = 20.dp),
             contentPadding = PaddingValues(top = 48.dp, bottom = 56.dp)
         ) {
             item {
                 Text("שגרות", fontSize = 30.sp, fontWeight = FontWeight.Light,
-                    color = Lux.Text, letterSpacing = 1.sp)
-                Text("מצבים ושגרות", fontSize = 11.sp, color = Lux.Faint, letterSpacing = 3.sp)
+                    color = Lux.text, letterSpacing = 1.sp)
+                Text("מצבים ושגרות", fontSize = 11.sp, color = Lux.faint, letterSpacing = 3.sp)
                 Spacer(Modifier.height(26.dp))
             }
 
@@ -240,10 +258,10 @@ fun DayDial(modes: List<Mode>, active: List<Mode>) {
     Box(
         Modifier.fillMaxWidth()
             .background(
-                Brush.radialGradient(listOf(Lux.SurfaceHi, Lux.Bg)),
+                Brush.radialGradient(listOf(Lux.surfaceHi, Lux.bg)),
                 RoundedCornerShape(28.dp)
             )
-            .border(1.dp, Lux.Line, RoundedCornerShape(28.dp))
+            .border(1.dp, Lux.line, RoundedCornerShape(28.dp))
             .padding(18.dp),
         contentAlignment = Alignment.Center
     ) {
@@ -252,7 +270,7 @@ fun DayDial(modes: List<Mode>, active: List<Mode>) {
             val c = Offset(size.width / 2, size.height / 2)
 
             // טבעת פליז חיצונית דקה
-            drawCircle(Lux.BrassDim, radius = d * 0.485f, center = c, style = Stroke(width = 1.2f))
+            drawCircle(Lux.brassDim, radius = d * 0.485f, center = c, style = Stroke(width = 1.2f))
 
             repeat(24) { h ->
                 val a = Math.toRadians(h / 24.0 * 360 - 90)
@@ -260,7 +278,7 @@ fun DayDial(modes: List<Mode>, active: List<Mode>) {
                 val outer = d * 0.455f
                 val inner = if (major) d * 0.415f else d * 0.44f
                 drawLine(
-                    color = if (major) Lux.Brass else Lux.Line,
+                    color = if (major) Lux.brass else Lux.line,
                     start = c + Offset((outer * Math.cos(a)).toFloat(), (outer * Math.sin(a)).toFloat()),
                     end = c + Offset((inner * Math.cos(a)).toFloat(), (inner * Math.sin(a)).toFloat()),
                     strokeWidth = if (major) 2.5f else 1.2f, cap = StrokeCap.Round
@@ -289,25 +307,25 @@ fun DayDial(modes: List<Mode>, active: List<Mode>) {
 
             val na = Math.toRadians(nowMinute / 1440.0 * 360 - 90)
             drawLine(
-                color = Lux.BrassSoft,
+                color = Lux.brassSoft,
                 start = c + Offset((d * 0.16f * Math.cos(na)).toFloat(), (d * 0.16f * Math.sin(na)).toFloat()),
                 end = c + Offset((d * 0.46f * Math.cos(na)).toFloat(), (d * 0.46f * Math.sin(na)).toFloat()),
                 strokeWidth = 2f, cap = StrokeCap.Round
             )
             drawCircle(
-                Lux.BrassSoft, radius = 4f,
+                Lux.brassSoft, radius = 4f,
                 center = c + Offset((d * 0.46f * Math.cos(na)).toFloat(), (d * 0.46f * Math.sin(na)).toFloat())
             )
         }
 
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(fmt(nowMinute), fontSize = 44.sp, fontWeight = FontWeight.ExtraLight,
-                color = Lux.Text, letterSpacing = 2.sp)
+                color = Lux.text, letterSpacing = 2.sp)
             Spacer(Modifier.height(2.dp))
             Text(
                 if (active.isEmpty()) "אין מצב פעיל" else active.joinToString(" · ") { it.name },
                 fontSize = 12.sp, letterSpacing = 1.sp,
-                color = if (active.isEmpty()) Lux.Faint else Lux.BrassSoft
+                color = if (active.isEmpty()) Lux.faint else Lux.brassSoft
             )
         }
     }
@@ -320,8 +338,8 @@ fun ModeRow(mode: Mode, live: Boolean, onToggle: () -> Unit, onOpen: () -> Unit)
     val color = Color(mode.colorArgb.toInt())
     Row(
         Modifier.fillMaxWidth()
-            .background(if (live) Lux.SurfaceHi else Lux.Surface, RoundedCornerShape(20.dp))
-            .border(1.dp, if (live) color.copy(alpha = 0.5f) else Lux.Line, RoundedCornerShape(20.dp))
+            .background(if (live) Lux.surfaceHi else Lux.surface, RoundedCornerShape(20.dp))
+            .border(1.dp, if (live) color.copy(alpha = 0.5f) else Lux.line, RoundedCornerShape(20.dp))
             .clickable { onOpen() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -337,14 +355,14 @@ fun ModeRow(mode: Mode, live: Boolean, onToggle: () -> Unit, onOpen: () -> Unit)
         }
 
         Column(Modifier.weight(1f)) {
-            Text(mode.name, fontSize = 17.sp, fontWeight = FontWeight.Medium, color = Lux.Text)
+            Text(mode.name, fontSize = 17.sp, fontWeight = FontWeight.Medium, color = Lux.text)
             Text(
                 "${fmt(mode.start)} — ${fmt(mode.end)}   ${dayLabels(mode.days)}",
-                fontSize = 12.sp, color = Lux.Faint, letterSpacing = 0.5.sp
+                fontSize = 12.sp, color = Lux.faint, letterSpacing = 0.5.sp
             )
             when (mode.manualOverride) {
-                true -> Text("פעיל ידנית", fontSize = 11.sp, color = Lux.Brass, letterSpacing = 1.sp)
-                false -> Text("מושהה עד סוף החלון", fontSize = 11.sp, color = Lux.Faint, letterSpacing = 1.sp)
+                true -> Text("פעיל ידנית", fontSize = 11.sp, color = Lux.brass, letterSpacing = 1.sp)
+                false -> Text("מושהה עד סוף החלון", fontSize = 11.sp, color = Lux.faint, letterSpacing = 1.sp)
                 else -> if (live) Text("פעיל עכשיו", fontSize = 11.sp, color = color, letterSpacing = 1.sp)
             }
         }
@@ -368,8 +386,8 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onCancel,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Lux.Surface,
-        contentColor = Lux.Text,
+        containerColor = Lux.surface,
+        contentColor = Lux.text,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(Modifier.fillMaxHeight(0.94f)) {
@@ -391,7 +409,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             .border(1.dp, color.copy(alpha = 0.5f), RoundedCornerShape(15.dp)),
                         contentAlignment = Alignment.Center
                     ) { Icon(iconFor(draft.id), null, tint = color, modifier = Modifier.size(23.dp)) }
-                    Text(draft.name, fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.Text)
+                    Text(draft.name, fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.text)
                 }
 
                 SectionHeader(Icons.Outlined.Tune, "עכשיו", top = 14)
@@ -417,10 +435,10 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         Box(
                             Modifier.weight(1f).height(36.dp)
                                 .background(if (on) color.copy(alpha = 0.18f) else Color.Transparent, RoundedCornerShape(11.dp))
-                                .border(1.dp, if (on) color.copy(alpha = 0.6f) else Lux.Line, RoundedCornerShape(11.dp))
+                                .border(1.dp, if (on) color.copy(alpha = 0.6f) else Lux.line, RoundedCornerShape(11.dp))
                                 .clickable { draft = draft.copy(days = days) },
                             contentAlignment = Alignment.Center
-                        ) { Text(label, color = if (on) color else Lux.Muted, fontSize = 12.sp) }
+                        ) { Text(label, color = if (on) color else Lux.muted, fontSize = 12.sp) }
                     }
                 }
 
@@ -431,19 +449,19 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             Box(
                                 Modifier.weight(1f).height(42.dp)
                                     .background(if (on) color.copy(alpha = 0.18f) else Color.Transparent, RoundedCornerShape(12.dp))
-                                    .border(1.dp, if (on) color.copy(alpha = 0.55f) else Lux.Line, RoundedCornerShape(12.dp))
+                                    .border(1.dp, if (on) color.copy(alpha = 0.55f) else Lux.line, RoundedCornerShape(12.dp))
                                     .clickable {
                                         draft = draft.copy(days = if (on) draft.days - d else draft.days + d)
                                     },
                                 contentAlignment = Alignment.Center
-                            ) { Text(label, color = if (on) color else Lux.Faint, fontSize = 13.sp) }
+                            ) { Text(label, color = if (on) color else Lux.faint, fontSize = 13.sp) }
                         }
                 }
 
                 if (draft.days.isEmpty()) {
                     Text(
                         "לא נבחר אף יום — המצב לא יופעל לפי הלוח.",
-                        fontSize = 11.sp, color = Lux.Brass
+                        fontSize = 11.sp, color = Lux.brass
                     )
                 }
 
@@ -458,31 +476,31 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     if (!CalendarReader.hasPermission(ctx)) {
                         Text(
                             "חסרה הרשאת יומן. אשר אותה במסך ההרשאות שבתחתית הלוח הראשי.",
-                            fontSize = 11.sp, color = Lux.Brass, lineHeight = 17.sp
+                            fontSize = 11.sp, color = Lux.brass, lineHeight = 17.sp
                         )
                     } else {
                         val cals = remember { CalendarReader.calendars(ctx) }
                         Text(
                             "נספרים אירועים שאינם יום שלם ושלא דחית. הסינון נעשה לפי המילים שלמטה ולפי הבחירה הידנית.",
-                            fontSize = 11.sp, color = Lux.Faint, lineHeight = 17.sp
+                            fontSize = 11.sp, color = Lux.faint, lineHeight = 17.sp
                         )
 
                         if (cals.isEmpty()) {
                             Text(
                                 "לא נמצא יומן מסונכרן במכשיר. ודא שיומן Outlook מסונכרן ליומן של הטלפון.",
-                                fontSize = 11.sp, color = Lux.Brass, lineHeight = 17.sp
+                                fontSize = 11.sp, color = Lux.brass, lineHeight = 17.sp
                             )
                         } else {
                             Text(
                                 if (draft.calendar.calendarIds.isEmpty()) "כל היומנים" else "יומנים נבחרים",
-                                fontSize = 11.sp, color = Lux.Muted
+                                fontSize = 11.sp, color = Lux.muted
                             )
                             cals.forEach { cal ->
                                 val on = draft.calendar.calendarIds.contains(cal.id)
                                 Row(
                                     Modifier.fillMaxWidth()
-                                        .background(Lux.Bg, RoundedCornerShape(12.dp))
-                                        .border(1.dp, if (on) color.copy(alpha = 0.5f) else Lux.Line, RoundedCornerShape(12.dp))
+                                        .background(Lux.bg, RoundedCornerShape(12.dp))
+                                        .border(1.dp, if (on) color.copy(alpha = 0.5f) else Lux.line, RoundedCornerShape(12.dp))
                                         .clickable {
                                             val ids = draft.calendar.calendarIds
                                             draft = draft.copy(
@@ -495,8 +513,8 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(Modifier.weight(1f)) {
-                                        Text(cal.name, fontSize = 13.sp, color = Lux.Text)
-                                        Text(cal.account, fontSize = 10.sp, color = Lux.Faint)
+                                        Text(cal.name, fontSize = 13.sp, color = Lux.text)
+                                        Text(cal.account, fontSize = 10.sp, color = Lux.faint)
                                         if (!cal.visible || !cal.syncing) {
                                             Text(
                                                 buildString {
@@ -504,7 +522,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                                     if (!cal.visible && !cal.syncing) append(" · ")
                                                     if (!cal.syncing) append("סנכרון כבוי")
                                                 },
-                                                fontSize = 10.sp, color = Lux.Brass
+                                                fontSize = 10.sp, color = Lux.brass
                                             )
                                         }
                                     }
@@ -542,7 +560,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                         ) {
                                             Text(w, fontSize = 12.sp, color = color)
                                             Spacer(Modifier.width(6.dp))
-                                            Text("×", fontSize = 13.sp, color = Lux.Faint)
+                                            Text("×", fontSize = 13.sp, color = Lux.faint)
                                         }
                                     }
                                 }
@@ -554,15 +572,15 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                     OutlinedTextField(
                                         value = newWord,
                                         onValueChange = { newWord = it },
-                                        label = { Text("מילה נוספת", color = Lux.Muted) },
+                                        label = { Text("מילה נוספת", color = Lux.muted) },
                                         singleLine = true,
                                         shape = RoundedCornerShape(12.dp),
                                         colors = OutlinedTextFieldDefaults.colors(
-                                            focusedBorderColor = Lux.Brass,
-                                            unfocusedBorderColor = Lux.Line,
-                                            focusedTextColor = Lux.Text,
-                                            unfocusedTextColor = Lux.Text,
-                                            cursorColor = Lux.Brass
+                                            focusedBorderColor = Lux.brass,
+                                            unfocusedBorderColor = Lux.line,
+                                            focusedTextColor = Lux.text,
+                                            unfocusedTextColor = Lux.text,
+                                            cursorColor = Lux.brass
                                         ),
                                         modifier = Modifier.weight(1f)
                                     )
@@ -580,13 +598,13 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                         },
                                         enabled = newWord.isNotBlank(),
                                         shape = RoundedCornerShape(12.dp),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Brass)
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.brass)
                                     ) { Text("הוספה", fontSize = 13.sp) }
                                 }
 
                                 Text(
                                     "ההשוואה מתעלמת מגרשיים ומרווחים, כך ש-פ\"ע ו-פ״ע נחשבים זהים.",
-                                    fontSize = 10.sp, color = Lux.Faint, lineHeight = 15.sp
+                                    fontSize = 10.sp, color = Lux.faint, lineHeight = 15.sp
                                 )
                             }
 
@@ -596,10 +614,10 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             }
                             if (upcoming.isNotEmpty()) {
                                 Spacer(Modifier.height(6.dp))
-                                Text("אירועים קרובים", fontSize = 12.sp, color = Lux.Muted)
+                                Text("אירועים קרובים", fontSize = 12.sp, color = Lux.muted)
                                 Text(
                                     "לחיצה על אירוע קובעת אותו ידנית, בלי קשר למילות המפתח.",
-                                    fontSize = 10.sp, color = Lux.Faint
+                                    fontSize = 10.sp, color = Lux.faint
                                 )
 
                                 val fmtDay = remember { SimpleDateFormat("EEE HH:mm", Locale("he")) }
@@ -607,10 +625,10 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                     val on = CalendarReader.matches(draft.calendar, ev)
                                     Row(
                                         Modifier.fillMaxWidth()
-                                            .background(Lux.Bg, RoundedCornerShape(12.dp))
+                                            .background(Lux.bg, RoundedCornerShape(12.dp))
                                             .border(
                                                 1.dp,
-                                                if (on) color.copy(alpha = 0.5f) else Lux.Line,
+                                                if (on) color.copy(alpha = 0.5f) else Lux.line,
                                                 RoundedCornerShape(12.dp)
                                             )
                                             .clickable {
@@ -636,21 +654,30 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                             onCheckedChange = null,
                                             colors = CheckboxDefaults.colors(
                                                 checkedColor = color,
-                                                uncheckedColor = Lux.Faint,
-                                                checkmarkColor = Lux.Bg
+                                                uncheckedColor = Lux.faint,
+                                                checkmarkColor = Lux.bg
                                             )
                                         )
                                         Spacer(Modifier.width(6.dp))
                                         Column(Modifier.weight(1f)) {
-                                            Text(ev.title, fontSize = 13.sp, color = Lux.Text)
+                                            Text(ev.title, fontSize = 13.sp, color = Lux.text)
                                             Text(
                                                 fmtDay.format(Date(ev.begin)),
-                                                fontSize = 10.sp, color = Lux.Faint
+                                                fontSize = 10.sp, color = Lux.faint
                                             )
                                         }
                                     }
                                 }
                             }
+
+                            val allUpcoming = remember(draft.calendar) {
+                                CalendarReader.upcomingAll(ctx, draft.calendar)
+                            }
+                            Text(
+                                "נמצאו ${allUpcoming.size} אירועים ב-7 הימים הקרובים ביומנים שנבחרו" +
+                                    if (allUpcoming.isEmpty()) " — נסה לבטל את בחירת היומנים כדי לקרוא מכולם." else "",
+                                fontSize = 11.sp, color = Lux.faint, lineHeight = 16.sp
+                            )
 
                             val next = remember(draft.calendar) {
                                 CalendarReader.nextMatching(ctx, draft.calendar)
@@ -665,7 +692,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                         SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(next.begin))
                                     else -> "אין אירוע קרוב שעונה לתנאים"
                                 },
-                                fontSize = 12.sp, color = Lux.BrassSoft
+                                fontSize = 12.sp, color = Lux.brassSoft
                             )
                         }
                     }
@@ -691,21 +718,21 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         OutlinedTextField(
                             value = draft.call.message,
                             onValueChange = { draft = draft.copy(call = draft.call.copy(message = it)) },
-                            label = { Text("ההודעה שתישלח", color = Lux.Muted) },
+                            label = { Text("ההודעה שתישלח", color = Lux.muted) },
                             minLines = 2,
                             shape = RoundedCornerShape(14.dp),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = Lux.Brass,
-                                unfocusedBorderColor = Lux.Line,
-                                focusedTextColor = Lux.Text,
-                                unfocusedTextColor = Lux.Text,
-                                cursorColor = Lux.Brass
+                                focusedBorderColor = Lux.brass,
+                                unfocusedBorderColor = Lux.line,
+                                focusedTextColor = Lux.text,
+                                unfocusedTextColor = Lux.text,
+                                cursorColor = Lux.brass
                             ),
                             modifier = Modifier.fillMaxWidth()
                         )
                         Text(
                             "${draft.call.message.length} תווים · ${(draft.call.message.length / 70) + 1} הודעות SMS",
-                            fontSize = 11.sp, color = Lux.Faint
+                            fontSize = 11.sp, color = Lux.faint
                         )
                     }
 
@@ -737,20 +764,20 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         draft.call.allowed.forEach { c ->
                             Row(
                                 Modifier.fillMaxWidth()
-                                    .background(Lux.Bg, RoundedCornerShape(12.dp))
-                                    .border(1.dp, Lux.Line, RoundedCornerShape(12.dp))
+                                    .background(Lux.bg, RoundedCornerShape(12.dp))
+                                    .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
                                     .padding(horizontal = 12.dp, vertical = 10.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(c.name, fontSize = 14.sp, color = Lux.Text)
-                                    Text(c.number, fontSize = 11.sp, color = Lux.Faint)
+                                    Text(c.name, fontSize = 14.sp, color = Lux.text)
+                                    Text(c.number, fontSize = 11.sp, color = Lux.faint)
                                 }
                                 TextButton(onClick = {
                                     draft = draft.copy(
                                         call = draft.call.copy(allowed = draft.call.allowed - c)
                                     )
-                                }) { Text("הסרה", color = Lux.Faint, fontSize = 12.sp) }
+                                }) { Text("הסרה", color = Lux.faint, fontSize = 12.sp) }
                             }
                         }
 
@@ -758,7 +785,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             onClick = { showPicker = true },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Brass)
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.brass)
                         ) {
                             Text(
                                 if (draft.call.allowed.isEmpty()) "בחירת אנשי קשר"
@@ -770,7 +797,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         if (draft.call.allowed.isEmpty()) {
                             Text(
                                 "הרשימה ריקה — כרגע אף אחד לא יעבור.",
-                                fontSize = 11.sp, color = Lux.Brass
+                                fontSize = 11.sp, color = Lux.brass
                             )
                         }
                     }
@@ -791,8 +818,8 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     Spacer(Modifier.height(4.dp))
                     Box(
                         Modifier.fillMaxWidth()
-                            .background(Lux.Bg, RoundedCornerShape(14.dp))
-                            .border(1.dp, Lux.Line, RoundedCornerShape(14.dp))
+                            .background(Lux.bg, RoundedCornerShape(14.dp))
+                            .border(1.dp, Lux.line, RoundedCornerShape(14.dp))
                             .padding(14.dp)
                     ) {
                         Text(
@@ -813,7 +840,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                     append("${draft.call.breakthrough.windowMinutes} דקות יפרצו את ההשתקה.")
                                 }
                             },
-                            fontSize = 12.sp, color = Lux.Muted, lineHeight = 19.sp
+                            fontSize = 12.sp, color = Lux.muted, lineHeight = 19.sp
                         )
                     }
                 }
@@ -828,7 +855,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                 if (draft.screen.dimEnabled) {
                     Text(
                         "בהירות: ${draft.screen.brightnessPercent}%",
-                        fontSize = 12.sp, color = Lux.Muted
+                        fontSize = 12.sp, color = Lux.muted
                     )
                     Slider(
                         value = draft.screen.brightnessPercent.toFloat(),
@@ -839,7 +866,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         colors = SliderDefaults.colors(
                             thumbColor = color,
                             activeTrackColor = color,
-                            inactiveTrackColor = Lux.Line
+                            inactiveTrackColor = Lux.line
                         )
                     )
                     ToggleRow("לכבות בהירות אוטומטית", draft.screen.disableAdaptive) {
@@ -847,7 +874,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     }
                     Text(
                         "הערכים המקוריים נשמרים ומוחזרים כשהמצב מסתיים.",
-                        fontSize = 10.sp, color = Lux.Faint
+                        fontSize = 10.sp, color = Lux.faint
                     )
                 }
 
@@ -869,7 +896,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                 if (draft.screen.nightLight || draft.screen.grayscale) {
                     Text(
                         "שתי אלה דורשות את הרשאת ADB המוגנת. בלעדיה הן פשוט לא יקרו.",
-                        fontSize = 10.sp, color = Lux.Brass, lineHeight = 15.sp
+                        fontSize = 10.sp, color = Lux.brass, lineHeight = 15.sp
                     )
                 }
 
@@ -888,7 +915,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
             // סרגל פעולות קבוע — תמיד נראה, לא נגלל עם התוכן
             Row(
                 Modifier.fillMaxWidth()
-                    .background(Lux.SurfaceHi)
+                    .background(Lux.surfaceHi)
                     .navigationBarsPadding()
                     .padding(horizontal = 22.dp, vertical = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(12.dp)
@@ -897,7 +924,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     onClick = onCancel,
                     modifier = Modifier.weight(1f).height(50.dp),
                     shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Muted)
+                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.muted)
                 ) { Text("ביטול", fontSize = 15.sp) }
 
                 Button(
@@ -906,10 +933,10 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     modifier = Modifier.weight(1f).height(50.dp),
                     shape = RoundedCornerShape(14.dp),
                     colors = ButtonDefaults.buttonColors(
-                        containerColor = Lux.Brass,
-                        contentColor = Lux.Bg,
-                        disabledContainerColor = Lux.Line,
-                        disabledContentColor = Lux.Faint
+                        containerColor = Lux.brass,
+                        contentColor = Lux.bg,
+                        disabledContainerColor = Lux.line,
+                        disabledContentColor = Lux.faint
                     )
                 ) { Text(if (dirty) "שמירה" else "אין שינויים", fontSize = 15.sp) }
             }
@@ -920,11 +947,11 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
 /* ── הרשאות: כפתור בתחתית + חלון צף ── */
 
 @Composable
-fun TriggerRow(icon: ImageVector, title: String, subtitle: String, tint: Color = Lux.Brass, onClick: () -> Unit) {
+fun TriggerRow(icon: ImageVector, title: String, subtitle: String, tint: Color = Lux.brass, onClick: () -> Unit) {
     Row(
         Modifier.fillMaxWidth()
-            .background(Lux.Surface, RoundedCornerShape(18.dp))
-            .border(1.dp, Lux.Line, RoundedCornerShape(18.dp))
+            .background(Lux.surface, RoundedCornerShape(18.dp))
+            .border(1.dp, Lux.line, RoundedCornerShape(18.dp))
             .clickable { onClick() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -932,10 +959,10 @@ fun TriggerRow(icon: ImageVector, title: String, subtitle: String, tint: Color =
     ) {
         Icon(icon, null, tint = tint, modifier = Modifier.size(20.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontSize = 15.sp, color = Lux.Text)
-            Text(subtitle, fontSize = 12.sp, color = Lux.Faint)
+            Text(title, fontSize = 15.sp, color = Lux.text)
+            Text(subtitle, fontSize = 12.sp, color = Lux.faint)
         }
-        Text("‹", fontSize = 22.sp, color = Lux.Faint)
+        Text("‹", fontSize = 22.sp, color = Lux.faint)
     }
 }
 
@@ -944,23 +971,23 @@ fun PermissionsTrigger(granted: Int, onClick: () -> Unit) {
     val complete = granted == Permissions.all.size
     Row(
         Modifier.fillMaxWidth()
-            .background(Lux.Surface, RoundedCornerShape(18.dp))
-            .border(1.dp, if (complete) Lux.Ok.copy(alpha = 0.4f) else Lux.Line, RoundedCornerShape(18.dp))
+            .background(Lux.surface, RoundedCornerShape(18.dp))
+            .border(1.dp, if (complete) Lux.ok.copy(alpha = 0.4f) else Lux.line, RoundedCornerShape(18.dp))
             .clickable { onClick() }
             .padding(16.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Icon(Icons.Outlined.Security, null, tint = if (complete) Lux.Ok else Lux.Brass,
+        Icon(Icons.Outlined.Security, null, tint = if (complete) Lux.ok else Lux.brass,
             modifier = Modifier.size(20.dp))
         Column(Modifier.weight(1f)) {
-            Text("הרשאות במכשיר", fontSize = 15.sp, color = Lux.Text)
+            Text("הרשאות במכשיר", fontSize = 15.sp, color = Lux.text)
             Text(
                 if (complete) "הכל מאושר" else "$granted מתוך ${Permissions.all.size} אושרו",
-                fontSize = 12.sp, color = if (complete) Lux.Ok else Lux.Faint
+                fontSize = 12.sp, color = if (complete) Lux.ok else Lux.faint
             )
         }
-        Text("‹", fontSize = 22.sp, color = Lux.Faint)
+        Text("‹", fontSize = 22.sp, color = Lux.faint)
     }
 }
 
@@ -981,8 +1008,8 @@ fun PermissionsSheet(onDismiss: () -> Unit, onChanged: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Lux.Surface,
-        contentColor = Lux.Text,
+        containerColor = Lux.surface,
+        contentColor = Lux.text,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -993,10 +1020,10 @@ fun PermissionsSheet(onDismiss: () -> Unit, onChanged: () -> Unit) {
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("הרשאות במכשיר", fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.Text)
+            Text("הרשאות במכשיר", fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.text)
             Text(
                 "כל אחת נדרשת פעם אחת בלבד, ונשארת גם אחרי הפעלה מחדש.",
-                fontSize = 12.sp, color = Lux.Faint
+                fontSize = 12.sp, color = Lux.faint
             )
             Spacer(Modifier.height(6.dp))
 
@@ -1004,31 +1031,31 @@ fun PermissionsSheet(onDismiss: () -> Unit, onChanged: () -> Unit) {
                 val granted = remember(tick, p.id) { runCatching { p.isGranted(ctx) }.getOrDefault(false) }
                 Column(
                     Modifier.fillMaxWidth()
-                        .background(Lux.Bg, RoundedCornerShape(16.dp))
-                        .border(1.dp, if (granted) Lux.Ok.copy(alpha = 0.35f) else Lux.Line, RoundedCornerShape(16.dp))
+                        .background(Lux.bg, RoundedCornerShape(16.dp))
+                        .border(1.dp, if (granted) Lux.ok.copy(alpha = 0.35f) else Lux.line, RoundedCornerShape(16.dp))
                         .padding(14.dp)
                 ) {
-                    Text(p.title, fontSize = 15.sp, color = Lux.Text)
-                    Text(p.subtitle, fontSize = 11.sp, color = Lux.Faint)
-                    Text("פותח: ${p.unlocks}", fontSize = 11.sp, color = Lux.Faint)
+                    Text(p.title, fontSize = 15.sp, color = Lux.text)
+                    Text(p.subtitle, fontSize = 11.sp, color = Lux.faint)
+                    Text("פותח: ${p.unlocks}", fontSize = 11.sp, color = Lux.faint)
 
                     p.adbCommand?.takeIf { !granted }?.let { cmd ->
                         Spacer(Modifier.height(10.dp))
                         Text(
-                            cmd, fontSize = 10.sp, color = Lux.BrassSoft, lineHeight = 16.sp,
+                            cmd, fontSize = 10.sp, color = Lux.brassSoft, lineHeight = 16.sp,
                             modifier = Modifier.fillMaxWidth()
                                 .background(Color.Black, RoundedCornerShape(10.dp))
-                                .border(1.dp, Lux.Line, RoundedCornerShape(10.dp))
+                                .border(1.dp, Lux.line, RoundedCornerShape(10.dp))
                                 .padding(10.dp)
                         )
                         TextButton(onClick = { copyText(ctx, cmd) }) {
-                            Text("העתקת הפקודה", color = Lux.Brass, fontSize = 12.sp)
+                            Text("העתקת הפקודה", color = Lux.brass, fontSize = 12.sp)
                         }
                     }
 
                     Spacer(Modifier.height(8.dp))
                     if (granted) {
-                        Text("אושר", color = Lux.Ok, fontSize = 12.sp, letterSpacing = 1.sp)
+                        Text("אושר", color = Lux.ok, fontSize = 12.sp, letterSpacing = 1.sp)
                     } else {
                         val opener = p.intentFor
                         OutlinedButton(
@@ -1040,7 +1067,7 @@ fun PermissionsSheet(onDismiss: () -> Unit, onChanged: () -> Unit) {
                             },
                             enabled = p.runtimePermissions.isNotEmpty() || opener != null,
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Brass)
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.brass)
                         ) { Text("אישור", fontSize = 13.sp) }
                     }
                 }
@@ -1059,31 +1086,31 @@ fun CallLogCard(refreshKey: Int) {
 
     Column(
         Modifier.fillMaxWidth()
-            .background(Lux.Surface, RoundedCornerShape(20.dp))
-            .border(1.dp, Lux.Line, RoundedCornerShape(20.dp))
+            .background(Lux.surface, RoundedCornerShape(20.dp))
+            .border(1.dp, Lux.line, RoundedCornerShape(20.dp))
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         if (events.isEmpty()) {
             Text(
                 "עדיין לא טופלה שום שיחה. אחרי הראשונה יופיע כאן מה בדיוק קרה איתה.",
-                fontSize = 12.sp, color = Lux.Faint, lineHeight = 19.sp
+                fontSize = 12.sp, color = Lux.faint, lineHeight = 19.sp
             )
         } else {
             events.take(6).forEach { e ->
                 Column {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(e.number, fontSize = 14.sp, color = Lux.Text)
-                        Text(clock.format(Date(e.timeMillis)), fontSize = 12.sp, color = Lux.Faint)
+                        Text(e.number, fontSize = 14.sp, color = Lux.text)
+                        Text(clock.format(Date(e.timeMillis)), fontSize = 12.sp, color = Lux.faint)
                     }
                     Text(
                         "${e.outcome} · ${e.modeName}" + if (e.smsSent) " · נשלחה הודעה" else "",
-                        fontSize = 12.sp, color = Lux.Muted
+                        fontSize = 12.sp, color = Lux.muted
                     )
                 }
             }
             TextButton(onClick = { CallLogStore.clear(ctx); events = emptyList() }) {
-                Text("ניקוי היומן", color = Lux.Faint, fontSize = 12.sp)
+                Text("ניקוי היומן", color = Lux.faint, fontSize = 12.sp)
             }
         }
     }
@@ -1096,16 +1123,16 @@ private fun TimeField(label: String, minutes: Int, modifier: Modifier = Modifier
     val ctx = LocalContext.current
     Column(
         modifier
-            .background(Lux.Bg, RoundedCornerShape(14.dp))
-            .border(1.dp, Lux.Line, RoundedCornerShape(14.dp))
+            .background(Lux.bg, RoundedCornerShape(14.dp))
+            .border(1.dp, Lux.line, RoundedCornerShape(14.dp))
             .clickable {
                 TimePickerDialog(ctx, { _, h, m -> onPick(h * 60 + m) }, minutes / 60, minutes % 60, true).show()
             }
             .padding(vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(label, fontSize = 10.sp, color = Lux.Faint, letterSpacing = 1.sp)
-        Text(fmt(minutes), fontSize = 20.sp, fontWeight = FontWeight.Light, color = Lux.Text)
+        Text(label, fontSize = 10.sp, color = Lux.faint, letterSpacing = 1.sp)
+        Text(fmt(minutes), fontSize = 20.sp, fontWeight = FontWeight.Light, color = Lux.text)
     }
 }
 
@@ -1116,7 +1143,7 @@ private fun ToggleRow(label: String, checked: Boolean, onChange: (Boolean) -> Un
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = 14.sp, color = Lux.Text, modifier = Modifier.weight(1f))
+        Text(label, fontSize = 14.sp, color = Lux.text, modifier = Modifier.weight(1f))
         Switch(checked = checked, onCheckedChange = onChange, colors = luxSwitch())
     }
 }
@@ -1131,11 +1158,11 @@ private fun <T> SegmentedRow(
             Box(
                 Modifier.weight(1f).height(44.dp)
                     .background(if (on) color.copy(alpha = 0.18f) else Color.Transparent, RoundedCornerShape(13.dp))
-                    .border(1.dp, if (on) color.copy(alpha = 0.6f) else Lux.Line, RoundedCornerShape(13.dp))
+                    .border(1.dp, if (on) color.copy(alpha = 0.6f) else Lux.line, RoundedCornerShape(13.dp))
                     .clickable { onSelect(value) },
                 contentAlignment = Alignment.Center
             ) {
-                Text(label, color = if (on) color else Lux.Muted, fontSize = 13.sp)
+                Text(label, color = if (on) color else Lux.muted, fontSize = 13.sp)
             }
         }
     }
@@ -1150,13 +1177,13 @@ private fun StepperRow(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(label, fontSize = 14.sp, color = Lux.Text, modifier = Modifier.weight(1f))
+        Text(label, fontSize = 14.sp, color = Lux.text, modifier = Modifier.weight(1f))
         TextButton(onClick = { if (value - step >= range.first) onChange(value - step) }) {
-            Text("−", color = Lux.Brass, fontSize = 18.sp)
+            Text("−", color = Lux.brass, fontSize = 18.sp)
         }
-        Text("$value $unit", fontSize = 13.sp, color = Lux.Text)
+        Text("$value $unit", fontSize = 13.sp, color = Lux.text)
         TextButton(onClick = { if (value + step <= range.last) onChange(value + step) }) {
-            Text("+", color = Lux.Brass, fontSize = 18.sp)
+            Text("+", color = Lux.brass, fontSize = 18.sp)
         }
     }
 }
