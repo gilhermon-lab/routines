@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -32,7 +33,9 @@ import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.PhoneCallback
 import androidx.compose.material.icons.outlined.Brightness4
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Security
 import androidx.compose.material.icons.outlined.Tune
@@ -49,6 +52,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import kotlinx.coroutines.launch
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -161,6 +165,7 @@ fun luxSwitch() = SwitchDefaults.colors(
 
 /* ────────────────────────────────────────────── */
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RoutinesScreen(themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit) {
     val ctx = LocalContext.current
@@ -168,6 +173,11 @@ fun RoutinesScreen(themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit) {
     var editing by remember { mutableStateOf<String?>(null) }
     var showPerms by remember { mutableStateOf(false) }
     var showDiag by remember { mutableStateOf(false) }
+    var showSettings by remember { mutableStateOf(false) }
+
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    val atTop by remember { derivedStateOf { listState.firstVisibleItemIndex < 2 } }
     var tick by remember { mutableIntStateOf(0) }
 
     // הרשאות משתנות גם מחוץ לאפליקציה, לכן סופרים מחדש בכל חזרה למסך
@@ -192,18 +202,55 @@ fun RoutinesScreen(themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit) {
         ModeWidget.refreshAll(ctx)
     }
 
-    Surface(color = Lux.bg, modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().navigationBarsPadding().padding(horizontal = 20.dp),
-            contentPadding = PaddingValues(top = 48.dp, bottom = 56.dp)
-        ) {
-            item {
-                Text("שגרות", fontSize = 30.sp, fontWeight = FontWeight.Light,
-                    color = Lux.text, letterSpacing = 1.sp)
-                Text("מצבים ושגרות", fontSize = 11.sp, color = Lux.faint, letterSpacing = 3.sp)
-                Spacer(Modifier.height(26.dp))
+    Scaffold(
+        containerColor = Lux.bg,
+        topBar = {
+            TopAppBar(
+                title = {
+                    Column {
+                        Text(
+                            "שגרות", fontSize = 22.sp, fontWeight = FontWeight.Light,
+                            color = Lux.text, letterSpacing = 1.sp
+                        )
+                        Text(
+                            if (active.isEmpty()) "אין מצב פעיל"
+                            else active.joinToString(" · ") { it.name },
+                            fontSize = 11.sp,
+                            color = if (active.isEmpty()) Lux.faint else Lux.brass
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(onClick = { showSettings = true }) {
+                        Icon(Icons.Outlined.Settings, contentDescription = "הגדרות", tint = Lux.brass)
+                    }
+                },
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = Lux.bg,
+                    titleContentColor = Lux.text,
+                    actionIconContentColor = Lux.brass
+                )
+            )
+        },
+        floatingActionButton = {
+            if (!atTop) {
+                SmallFloatingActionButton(
+                    onClick = { scope.launch { listState.animateScrollToItem(0) } },
+                    containerColor = Lux.surfaceHi,
+                    contentColor = Lux.brass,
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(Icons.Outlined.KeyboardArrowUp, contentDescription = "חזרה למעלה")
+                }
             }
-
+        }
+    ) { pad ->
+        LazyColumn(
+            state = listState,
+            modifier = Modifier.fillMaxSize().padding(pad).navigationBarsPadding()
+                .padding(horizontal = 20.dp),
+            contentPadding = PaddingValues(top = 8.dp, bottom = 64.dp)
+        ) {
             item {
                 // ישיבות היום, לציור על החוגה
                 val todaySpans = remember(modes, tick) {
@@ -250,37 +297,6 @@ fun RoutinesScreen(themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit) {
                 CallLogCard(tick)
             }
 
-            // ההרשאות יורדות לתחתית ונפתחות בחלון צף, כדי לא להעמיס על המסך הראשי
-            item {
-                Spacer(Modifier.height(26.dp))
-                SectionHeader(Icons.Outlined.Brightness4, "תצוגה", top = 0)
-                SegmentedRow(
-                    listOf(
-                        "אוטומטי" to ThemeMode.AUTO,
-                        "יום" to ThemeMode.DAY,
-                        "לילה" to ThemeMode.NIGHT
-                    ),
-                    themeMode, Lux.brass
-                ) { onThemeChange(it) }
-                Text(
-                    "אוטומטי: בהיר עד 19:00, כהה אחריו, וכהה בכל מצב שמחשיך את המסך.",
-                    fontSize = 11.sp, color = Lux.faint,
-                    modifier = Modifier.padding(top = 6.dp, bottom = 16.dp)
-                )
-
-                PermissionsTrigger(grantedCount) { showPerms = true }
-                Spacer(Modifier.height(10.dp))
-                TriggerRow(
-                    Icons.Outlined.MonitorHeart, "בדיקת מערכת",
-                    "מה חסם הודעה, ושליחת הודעת בדיקה"
-                ) { showDiag = true }
-
-                Text(
-                    "בנייה ${BuildConfig.BUILD_STAMP}",
-                    fontSize = 10.sp, color = Lux.faint,
-                    modifier = Modifier.padding(top = 14.dp)
-                )
-            }
         }
     }
 
@@ -303,6 +319,17 @@ fun RoutinesScreen(themeMode: ThemeMode, onThemeChange: (ThemeMode) -> Unit) {
 
     if (showDiag) {
         DiagnosticsSheet(onDismiss = { showDiag = false })
+    }
+
+    if (showSettings) {
+        SettingsSheet(
+            themeMode = themeMode,
+            onThemeChange = onThemeChange,
+            grantedCount = grantedCount,
+            onPermissions = { showSettings = false; showPerms = true },
+            onDiagnostics = { showSettings = false; showDiag = true },
+            onDismiss = { showSettings = false }
+        )
     }
 }
 
@@ -708,15 +735,38 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                 CalendarReader.upcomingAll(ctx, draft.calendar)
                             }
                             if (upcoming.isNotEmpty()) {
+                                var eventsOpen by remember { mutableStateOf(false) }
+                                val chosen = upcoming.count { CalendarReader.matches(draft.calendar, it) }
+
                                 Spacer(Modifier.height(6.dp))
-                                Text("אירועים קרובים", fontSize = 12.sp, color = Lux.muted)
-                                Text(
+                                Row(
+                                    Modifier.fillMaxWidth()
+                                        .background(Lux.surfaceHi, RoundedCornerShape(12.dp))
+                                        .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
+                                        .clickable { eventsOpen = !eventsOpen }
+                                        .padding(horizontal = 12.dp, vertical = 11.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(Modifier.weight(1f)) {
+                                        Text("אירועים קרובים", fontSize = 13.sp, color = Lux.text)
+                                        Text(
+                                            "$chosen מתוך ${upcoming.size} יפעילו את המצב",
+                                            fontSize = 11.sp, color = Lux.faint
+                                        )
+                                    }
+                                    Text(
+                                        if (eventsOpen) "הסתרה" else "הרחבה",
+                                        fontSize = 12.sp, color = color
+                                    )
+                                }
+
+                                if (eventsOpen) Text(
                                     "לחיצה על אירוע קובעת אותו ידנית, בלי קשר למילות המפתח.",
                                     fontSize = 10.sp, color = Lux.faint
                                 )
 
                                 val fmtDay = remember { SimpleDateFormat("EEE HH:mm", Locale("he")) }
-                                upcoming.take(12).forEach { ev ->
+                                if (eventsOpen) upcoming.take(12).forEach { ev ->
                                     val on = CalendarReader.matches(draft.calendar, ev)
                                     Row(
                                         Modifier.fillMaxWidth()
@@ -1026,6 +1076,66 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     )
                 ) { Text(if (dirty) "שמירה" else "אין שינויים", fontSize = 15.sp) }
             }
+        }
+    }
+}
+
+/* ── הגדרות ── */
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun SettingsSheet(
+    themeMode: ThemeMode,
+    onThemeChange: (ThemeMode) -> Unit,
+    grantedCount: Int,
+    onPermissions: () -> Unit,
+    onDiagnostics: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = Lux.surface,
+        contentColor = Lux.text,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            Modifier
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp)
+                .navigationBarsPadding()
+                .padding(bottom = 32.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Text("הגדרות", fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.text)
+
+            SectionHeader(Icons.Outlined.Brightness4, "תצוגה", top = 12)
+            SegmentedRow(
+                listOf(
+                    "אוטומטי" to ThemeMode.AUTO,
+                    "יום" to ThemeMode.DAY,
+                    "לילה" to ThemeMode.NIGHT
+                ),
+                themeMode, Lux.brass
+            ) { onThemeChange(it) }
+            Text(
+                "אוטומטי: בהיר עד 19:00, כהה אחריו, וכהה בכל מצב שמחשיך את המסך.",
+                fontSize = 11.sp, color = Lux.faint, lineHeight = 16.sp
+            )
+
+            SectionHeader(Icons.Outlined.Security, "מערכת", top = 12)
+            PermissionsTrigger(grantedCount) { onPermissions() }
+            Spacer(Modifier.height(2.dp))
+            TriggerRow(
+                Icons.Outlined.MonitorHeart, "בדיקת מערכת",
+                "מה חסם הודעה, ושליחת הודעת בדיקה"
+            ) { onDiagnostics() }
+
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "בנייה ${BuildConfig.BUILD_STAMP}",
+                fontSize = 10.sp, color = Lux.faint
+            )
         }
     }
 }
