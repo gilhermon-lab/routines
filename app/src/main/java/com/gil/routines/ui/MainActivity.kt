@@ -655,28 +655,14 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             )
                         } else {
                             // כותרת מתקפלת — הרשימה ארוכה ולא צריך אותה פתוחה תמיד
-                            Row(
-                                Modifier.fillMaxWidth()
-                                    .background(Lux.surfaceHi, RoundedCornerShape(12.dp))
-                                    .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
-                                    .clickable { calsOpen = !calsOpen }
-                                    .padding(horizontal = 12.dp, vertical = 11.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Column(Modifier.weight(1f)) {
-                                    Text("יומנים", fontSize = 13.sp, color = Lux.text)
-                                    Text(
-                                        if (draft.calendar.calendarIds.isEmpty())
-                                            "כל היומנים (${cals.size})"
-                                        else "${draft.calendar.calendarIds.size} מתוך ${cals.size} נבחרו",
-                                        fontSize = 11.sp, color = Lux.faint
-                                    )
-                                }
-                                Text(
-                                    if (calsOpen) "הסתרה" else "הרחבה",
-                                    fontSize = 12.sp, color = color
-                                )
-                            }
+                            CollapsibleHeader(
+                                title = "יומנים",
+                                summary = if (draft.calendar.calendarIds.isEmpty())
+                                    "כל היומנים (${cals.size})"
+                                else "${draft.calendar.calendarIds.size} מתוך ${cals.size} נבחרו",
+                                open = calsOpen,
+                                accent = color
+                            ) { calsOpen = !calsOpen }
 
                             if (calsOpen) cals.forEach { cal ->
                                 val on = draft.calendar.calendarIds.contains(cal.id)
@@ -802,26 +788,12 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                 val chosen = upcoming.count { CalendarReader.matches(draft.calendar, it) }
 
                                 Spacer(Modifier.height(6.dp))
-                                Row(
-                                    Modifier.fillMaxWidth()
-                                        .background(Lux.surfaceHi, RoundedCornerShape(12.dp))
-                                        .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
-                                        .clickable { eventsOpen = !eventsOpen }
-                                        .padding(horizontal = 12.dp, vertical = 11.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(Modifier.weight(1f)) {
-                                        Text("אירועים קרובים", fontSize = 13.sp, color = Lux.text)
-                                        Text(
-                                            "$chosen מתוך ${upcoming.size} יפעילו את המצב",
-                                            fontSize = 11.sp, color = Lux.faint
-                                        )
-                                    }
-                                    Text(
-                                        if (eventsOpen) "הסתרה" else "הרחבה",
-                                        fontSize = 12.sp, color = color
-                                    )
-                                }
+                                CollapsibleHeader(
+                                    title = "אירועים קרובים",
+                                    summary = "$chosen מתוך ${upcoming.size} יפעילו את המצב",
+                                    open = eventsOpen,
+                                    accent = color
+                                ) { eventsOpen = !eventsOpen }
 
                                 if (eventsOpen) Text(
                                     "לחיצה על אירוע קובעת אותו ידנית, בלי קשר למילות המפתח.",
@@ -960,7 +932,16 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             )
                         }
 
-                        draft.call.allowed.forEach { c ->
+                        var contactsOpen by remember { mutableStateOf(false) }
+                        CollapsibleHeader(
+                            title = "אנשי קשר מאושרים",
+                            summary = if (draft.call.allowed.isEmpty()) "הרשימה ריקה"
+                                      else "${draft.call.allowed.size} ברשימה",
+                            open = contactsOpen,
+                            accent = color
+                        ) { contactsOpen = !contactsOpen }
+
+                        if (contactsOpen) draft.call.allowed.forEach { c ->
                             Row(
                                 Modifier.fillMaxWidth()
                                     .background(Lux.bg, RoundedCornerShape(12.dp))
@@ -980,7 +961,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             }
                         }
 
-                        OutlinedButton(
+                        if (contactsOpen) OutlinedButton(
                             onClick = { showPicker = true },
                             modifier = Modifier.fillMaxWidth(),
                             shape = RoundedCornerShape(12.dp),
@@ -993,7 +974,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             )
                         }
 
-                        if (draft.call.allowed.isEmpty()) {
+                        if (contactsOpen && draft.call.allowed.isEmpty()) {
                             Text(
                                 "הרשימה ריקה — כרגע אף אחד לא יעבור.",
                                 fontSize = 11.sp, color = Lux.brass
@@ -1350,13 +1331,21 @@ fun CallLogCard(refreshKey: Int) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
+        var logOpen by remember { mutableStateOf(false) }
+
         if (events.isEmpty()) {
             Text(
                 "עדיין לא טופלה שום שיחה. אחרי הראשונה יופיע כאן מה בדיוק קרה איתה.",
                 fontSize = 12.sp, color = Lux.faint, lineHeight = 19.sp
             )
         } else {
-            events.take(6).forEach { e ->
+            CollapsibleHeader(
+                title = "שיחות אחרונות",
+                summary = "${events.size} רשומות · האחרונה ב-${clock.format(Date(events.first().timeMillis))}",
+                open = logOpen
+            ) { logOpen = !logOpen }
+
+            if (logOpen) events.take(6).forEach { e ->
                 Column {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text(e.number, fontSize = 14.sp, color = Lux.text)
@@ -1368,7 +1357,7 @@ fun CallLogCard(refreshKey: Int) {
                     )
                 }
             }
-            TextButton(onClick = { CallLogStore.clear(ctx); events = emptyList() }) {
+            if (logOpen) TextButton(onClick = { CallLogStore.clear(ctx); events = emptyList() }) {
                 Text("ניקוי היומן", color = Lux.faint, fontSize = 12.sp)
             }
         }
@@ -1376,6 +1365,31 @@ fun CallLogCard(refreshKey: Int) {
 }
 
 /* ── רכיבים משותפים ── */
+
+/** כותרת אחידה לכל רשימה שאפשר לקפל: שם, סיכום קצר, ומתג הרחבה */
+@Composable
+fun CollapsibleHeader(
+    title: String,
+    summary: String,
+    open: Boolean,
+    accent: Color = Lux.brass,
+    onToggle: () -> Unit
+) {
+    Row(
+        Modifier.fillMaxWidth()
+            .background(Lux.surfaceHi, RoundedCornerShape(12.dp))
+            .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
+            .clickable { onToggle() }
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, fontSize = 13.sp, color = Lux.text)
+            Text(summary, fontSize = 11.sp, color = Lux.faint)
+        }
+        Text(if (open) "הסתרה" else "הרחבה", fontSize = 12.sp, color = accent)
+    }
+}
 
 @Composable
 private fun TimeField(label: String, minutes: Int, modifier: Modifier = Modifier, onPick: (Int) -> Unit) {
