@@ -91,8 +91,8 @@ fun DiagnosticsSheet(onDismiss: () -> Unit) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
-        containerColor = Lux.Surface,
-        contentColor = Lux.Text,
+        containerColor = Lux.surface,
+        contentColor = Lux.text,
         shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
     ) {
         Column(
@@ -103,84 +103,84 @@ fun DiagnosticsSheet(onDismiss: () -> Unit) {
                 .padding(bottom = 32.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Text("בדיקת מערכת", fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.Text)
+            Text("בדיקת מערכת", fontSize = 24.sp, fontWeight = FontWeight.Light, color = Lux.text)
             Text(
                 "מה נדרש כדי שהודעה תישלח, ומה חסר כרגע.",
-                fontSize = 12.sp, color = Lux.Faint
+                fontSize = 12.sp, color = Lux.faint
             )
             Spacer(Modifier.height(6.dp))
 
             checks.forEach { c ->
                 Row(
                     Modifier.fillMaxWidth()
-                        .background(Lux.Bg, RoundedCornerShape(14.dp))
-                        .border(1.dp, if (c.ok) Lux.Ok.copy(alpha = 0.3f) else Lux.Line, RoundedCornerShape(14.dp))
+                        .background(Lux.bg, RoundedCornerShape(14.dp))
+                        .border(1.dp, if (c.ok) Lux.ok.copy(alpha = 0.3f) else Lux.line, RoundedCornerShape(14.dp))
                         .padding(14.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     Icon(
                         if (c.ok) Icons.Outlined.Check else Icons.Outlined.Close,
-                        null, tint = if (c.ok) Lux.Ok else Lux.Brass,
+                        null, tint = if (c.ok) Lux.ok else Lux.brass,
                         modifier = Modifier.size(18.dp)
                     )
                     Column {
-                        Text(c.label, fontSize = 14.sp, color = Lux.Text)
-                        if (!c.ok) Text(c.hint, fontSize = 11.sp, color = Lux.Muted, lineHeight = 17.sp)
+                        Text(c.label, fontSize = 14.sp, color = Lux.text)
+                        if (!c.ok) Text(c.hint, fontSize = 11.sp, color = Lux.muted, lineHeight = 17.sp)
                     }
                 }
             }
 
             Spacer(Modifier.height(14.dp))
-            Text("מצב נוכחי", fontSize = 15.sp, color = Lux.Text)
+            Text("מצב נוכחי", fontSize = 15.sp, color = Lux.text)
             Box(
                 Modifier.fillMaxWidth()
-                    .background(Lux.Bg, RoundedCornerShape(14.dp))
-                    .border(1.dp, Lux.Line, RoundedCornerShape(14.dp))
+                    .background(Lux.bg, RoundedCornerShape(14.dp))
+                    .border(1.dp, Lux.line, RoundedCornerShape(14.dp))
                     .padding(14.dp)
             ) {
                 Column {
                     Text("נא לא להפריע כרגע: ${ModeApplier.dndFilterName(ctx)}",
-                        fontSize = 12.sp, color = Lux.Muted)
+                        fontSize = 12.sp, color = Lux.muted)
                     Text("הפעלה אחרונה: ${ModeApplier.lastTrace(ctx)}",
-                        fontSize = 12.sp, color = Lux.Muted, lineHeight = 18.sp)
+                        fontSize = 12.sp, color = Lux.muted, lineHeight = 18.sp)
                     val cals = runCatching { CalendarReader.calendars(ctx) }.getOrDefault(emptyList())
                     Text(
                         "יומנים שנמצאו: ${cals.size}" +
                             if (cals.isEmpty()) " — אין יומן מסונכרן, או שחסרה הרשאת יומן."
                             else "\n" + cals.joinToString("\n") { "· ${it.name} (${it.account})" },
-                        fontSize = 12.sp, color = Lux.Muted, lineHeight = 18.sp
+                        fontSize = 12.sp, color = Lux.muted, lineHeight = 18.sp
                     )
                     Text(
                         "שיחות שהשירות ראה: ${CallLogStore.all(ctx).size}" +
                             if (CallLogStore.all(ctx).isEmpty())
                                 " — אם זה 0 אחרי שיחת בדיקה, אנדרואיד לא מפנה אלינו שיחות בכלל."
                             else "",
-                        fontSize = 12.sp, color = Lux.Muted, lineHeight = 18.sp
+                        fontSize = 12.sp, color = Lux.muted, lineHeight = 18.sp
                     )
                 }
             }
 
             Spacer(Modifier.height(14.dp))
-            Text("שליחת הודעת בדיקה", fontSize = 15.sp, color = Lux.Text)
+            Text("שליחת הודעת בדיקה", fontSize = 15.sp, color = Lux.text)
             Text(
                 "שולח SMS אמיתי דרך אותו קוד שרץ בדחיית שיחה. הזן מספר — למשל שלך.",
-                fontSize = 11.sp, color = Lux.Faint, lineHeight = 17.sp
+                fontSize = 11.sp, color = Lux.faint, lineHeight = 17.sp
             )
 
             OutlinedTextField(
                 value = number,
                 onValueChange = { number = it },
-                label = { Text("מספר טלפון", color = Lux.Muted) },
+                label = { Text("מספר טלפון", color = Lux.muted) },
                 singleLine = true,
                 textStyle = TextStyle(textDirection = TextDirection.Ltr),
                 keyboardOptions = androidx.compose.foundation.text.KeyboardOptions(keyboardType = KeyboardType.Phone),
                 shape = RoundedCornerShape(14.dp),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Lux.Brass,
-                    unfocusedBorderColor = Lux.Line,
-                    focusedTextColor = Lux.Text,
-                    unfocusedTextColor = Lux.Text,
-                    cursorColor = Lux.Brass
+                    focusedBorderColor = Lux.brass,
+                    unfocusedBorderColor = Lux.line,
+                    focusedTextColor = Lux.text,
+                    unfocusedTextColor = Lux.text,
+                    cursorColor = Lux.brass
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -201,18 +201,18 @@ fun DiagnosticsSheet(onDismiss: () -> Unit) {
                 },
                 enabled = number.isNotBlank(),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.Brass),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = Lux.brass),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("שלח הודעת בדיקה") }
 
             result?.let {
                 Box(
                     Modifier.fillMaxWidth()
-                        .background(Lux.Bg, RoundedCornerShape(12.dp))
-                        .border(1.dp, if (resultOk) Lux.Ok.copy(alpha = 0.4f) else Lux.Brass.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
+                        .background(Lux.bg, RoundedCornerShape(12.dp))
+                        .border(1.dp, if (resultOk) Lux.ok.copy(alpha = 0.4f) else Lux.brass.copy(alpha = 0.4f), RoundedCornerShape(12.dp))
                         .padding(12.dp)
                 ) {
-                    Text(it, fontSize = 12.sp, color = if (resultOk) Lux.Ok else Lux.BrassSoft, lineHeight = 18.sp)
+                    Text(it, fontSize = 12.sp, color = if (resultOk) Lux.ok else Lux.brassSoft, lineHeight = 18.sp)
                 }
             }
         }
