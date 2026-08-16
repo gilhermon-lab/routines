@@ -46,7 +46,8 @@ object ModeStore {
                 contactPolicy = ContactPolicy.ALL,
                 smsCooldownHours = 6,
                 breakthrough = Breakthrough(true, 3, 10)
-            )
+            ),
+            screen = ScreenConfig(dimEnabled = true, brightnessPercent = 3, timeoutEnabled = true, timeoutSeconds = 15)
         ),
         Mode(
             id = "work", name = "עבודה", colorArgb = 0xFF58A6A6L, enabled = true,

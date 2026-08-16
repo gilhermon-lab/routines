@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.PhoneCallback
+import androidx.compose.material.icons.outlined.Brightness4
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.MonitorHeart
 import androidx.compose.material.icons.outlined.Security
@@ -817,6 +818,61 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     }
                 }
 
+                // ── מסך ──
+                SectionHeader(Icons.Outlined.Brightness4, "מסך", top = 14)
+
+                ToggleRow("החשכת מסך", draft.screen.dimEnabled) {
+                    draft = draft.copy(screen = draft.screen.copy(dimEnabled = it))
+                }
+
+                if (draft.screen.dimEnabled) {
+                    Text(
+                        "בהירות: ${draft.screen.brightnessPercent}%",
+                        fontSize = 12.sp, color = Lux.Muted
+                    )
+                    Slider(
+                        value = draft.screen.brightnessPercent.toFloat(),
+                        onValueChange = {
+                            draft = draft.copy(screen = draft.screen.copy(brightnessPercent = it.toInt().coerceIn(1, 100)))
+                        },
+                        valueRange = 1f..100f,
+                        colors = SliderDefaults.colors(
+                            thumbColor = color,
+                            activeTrackColor = color,
+                            inactiveTrackColor = Lux.Line
+                        )
+                    )
+                    ToggleRow("לכבות בהירות אוטומטית", draft.screen.disableAdaptive) {
+                        draft = draft.copy(screen = draft.screen.copy(disableAdaptive = it))
+                    }
+                    Text(
+                        "הערכים המקוריים נשמרים ומוחזרים כשהמצב מסתיים.",
+                        fontSize = 10.sp, color = Lux.Faint
+                    )
+                }
+
+                ToggleRow("לקצר זמן כיבוי מסך", draft.screen.timeoutEnabled) {
+                    draft = draft.copy(screen = draft.screen.copy(timeoutEnabled = it))
+                }
+                if (draft.screen.timeoutEnabled) {
+                    StepperRow("כיבוי אחרי", draft.screen.timeoutSeconds, 15..120, "שניות", 15) {
+                        draft = draft.copy(screen = draft.screen.copy(timeoutSeconds = it))
+                    }
+                }
+
+                ToggleRow("מסנן אור כחול", draft.screen.nightLight) {
+                    draft = draft.copy(screen = draft.screen.copy(nightLight = it))
+                }
+                ToggleRow("גווני אפור", draft.screen.grayscale) {
+                    draft = draft.copy(screen = draft.screen.copy(grayscale = it))
+                }
+                if (draft.screen.nightLight || draft.screen.grayscale) {
+                    Text(
+                        "שתי אלה דורשות את הרשאת ADB המוגנת. בלעדיה הן פשוט לא יקרו.",
+                        fontSize = 10.sp, color = Lux.Brass, lineHeight = 15.sp
+                    )
+                }
+
                 SectionHeader(Icons.Outlined.Tune, "פעולות נוספות", top = 14)
                 ToggleRow("נא לא להפריע", draft.actions.contains(Actions.DND)) {
                     draft = draft.copy(actions = if (it) draft.actions + Actions.DND else draft.actions - Actions.DND)
@@ -824,6 +880,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                 ToggleRow("השתקת צלצול", draft.actions.contains(Actions.MUTE)) {
                     draft = draft.copy(actions = if (it) draft.actions + Actions.MUTE else draft.actions - Actions.MUTE)
                 }
+                Spacer(Modifier.height(4.dp))
 
                 Spacer(Modifier.height(16.dp))
             }

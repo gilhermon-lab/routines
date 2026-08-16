@@ -59,6 +59,21 @@ fun normalizeTitle(s: String): String =
     s.filterNot { it in setOf('"', '\u05F4', '\u2019', '\'', '\u05F3', ' ', '\u200f', '\u200e') }
         .lowercase()
 
+/**
+ * הגדרות מסך למצב. מה שדורש WRITE_SECURE_SETTINGS מסומן במפורש.
+ */
+data class ScreenConfig(
+    val dimEnabled: Boolean = false,
+    /** אחוז בהירות, 1..100 */
+    val brightnessPercent: Int = 5,
+    val disableAdaptive: Boolean = true,
+    val timeoutEnabled: Boolean = false,
+    /** שניות עד כיבוי מסך */
+    val timeoutSeconds: Int = 15,
+    val nightLight: Boolean = false,   // דורש WRITE_SECURE_SETTINGS
+    val grayscale: Boolean = false     // דורש WRITE_SECURE_SETTINGS
+)
+
 /** דקות מחצות, 0..1439 — מאפשר דיוק של דקה ולא רק שעות עגולות */
 typealias MinuteOfDay = Int
 
@@ -74,6 +89,7 @@ data class Mode(
     val actions: Set<String> = emptySet(),
     val call: CallConfig = CallConfig(),
     val calendar: CalendarTrigger = CalendarTrigger(),
+    val screen: ScreenConfig = ScreenConfig(),
     /**
      * עקיפה ידנית של לוח הזמנים.
      * null = לפי הלוח, true = דלוק עכשיו בלי קשר לשעה, false = כבוי עכשיו.
@@ -123,6 +139,15 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
     put("actions", JSONArray(actions.toList()))
     put("calEnabled", calendar.enabled)
     put("calIds", JSONArray(calendar.calendarIds.toList()))
+    put("scr", JSONObject().apply {
+        put("dim", screen.dimEnabled)
+        put("pct", screen.brightnessPercent)
+        put("adap", screen.disableAdaptive)
+        put("toEn", screen.timeoutEnabled)
+        put("toSec", screen.timeoutSeconds)
+        put("night", screen.nightLight)
+        put("gray", screen.grayscale)
+    })
     put("calWords", JSONArray(calendar.keywords))
     put("calRequire", calendar.requireKeyword)
     put("calOn", JSONArray(calendar.forcedOn.toList()))
@@ -157,6 +182,17 @@ fun modeFromJson(o: JSONObject): Mode {
         end = o.optInt("end", 0),
         days = o.optJSONArray("days").toIntSet(),
         actions = o.optJSONArray("actions").toStringSet(),
+        screen = (o.optJSONObject("scr") ?: JSONObject()).let { sc ->
+            ScreenConfig(
+                dimEnabled = sc.optBoolean("dim", false),
+                brightnessPercent = sc.optInt("pct", 5).coerceIn(1, 100),
+                disableAdaptive = sc.optBoolean("adap", true),
+                timeoutEnabled = sc.optBoolean("toEn", false),
+                timeoutSeconds = sc.optInt("toSec", 15),
+                nightLight = sc.optBoolean("night", false),
+                grayscale = sc.optBoolean("gray", false)
+            )
+        },
         calendar = CalendarTrigger(
             enabled = o.optBoolean("calEnabled", false),
             calendarIds = (o.optJSONArray("calIds") ?: JSONArray()).let { arr ->

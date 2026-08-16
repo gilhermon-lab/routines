@@ -26,6 +26,7 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
+import com.gil.routines.calendar.CalendarReader
 import com.gil.routines.call.CallLogStore
 import com.gil.routines.call.SmsSender
 import com.gil.routines.data.Actions
@@ -142,6 +143,13 @@ fun DiagnosticsSheet(onDismiss: () -> Unit) {
                         fontSize = 12.sp, color = Lux.Muted)
                     Text("הפעלה אחרונה: ${ModeApplier.lastTrace(ctx)}",
                         fontSize = 12.sp, color = Lux.Muted, lineHeight = 18.sp)
+                    val cals = runCatching { CalendarReader.calendars(ctx) }.getOrDefault(emptyList())
+                    Text(
+                        "יומנים שנמצאו: ${cals.size}" +
+                            if (cals.isEmpty()) " — אין יומן מסונכרן, או שחסרה הרשאת יומן."
+                            else "\n" + cals.joinToString("\n") { "· ${it.name} (${it.account})" },
+                        fontSize = 12.sp, color = Lux.Muted, lineHeight = 18.sp
+                    )
                     Text(
                         "שיחות שהשירות ראה: ${CallLogStore.all(ctx).size}" +
                             if (CallLogStore.all(ctx).isEmpty())
