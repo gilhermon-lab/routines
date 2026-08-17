@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material.icons.outlined.PhoneCallback
+import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.Brightness4
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material.icons.outlined.Schedule
@@ -626,6 +627,18 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                 ) { draft = draft.copy(manualOverride = it) }
 
                 SectionHeader(Icons.Outlined.Schedule, "מתי", top = 14)
+
+                ToggleRow("לפי שעות קבועות", draft.useSchedule) {
+                    draft = draft.copy(useSchedule = it)
+                }
+                if (!draft.useSchedule) {
+                    Text(
+                        "המצב לא ייפתח לפי שעה. הוא יופעל רק ידנית, לפי חיבור או לפי יומן.",
+                        fontSize = 11.sp, color = Lux.faint, lineHeight = 16.sp
+                    )
+                }
+
+                if (draft.useSchedule) {
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     TimeField("התחלה", draft.start, Modifier.weight(1f)) { draft = draft.copy(start = it) }
                     TimeField("סיום", draft.end, Modifier.weight(1f)) { draft = draft.copy(end = it) }
@@ -670,6 +683,66 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         "לא נבחר אף יום — המצב לא יופעל לפי הלוח.",
                         fontSize = 11.sp, color = Lux.brass
                     )
+                }
+                }
+
+                // ── חיבור לרכב ──
+                SectionHeader(Icons.Outlined.Bluetooth, "חיבור", top = 14)
+                ToggleRow("להפעיל בחיבור לבלוטות'", draft.bluetooth.enabled) {
+                    draft = draft.copy(bluetooth = draft.bluetooth.copy(enabled = it))
+                }
+                if (draft.bluetooth.enabled) {
+                    val devices = remember { BtDevices.paired(ctx) }
+                    var btOpen by remember { mutableStateOf(draft.bluetooth.addresses.isEmpty()) }
+
+                    if (devices.isEmpty()) {
+                        Text(
+                            "לא נמצאו מכשירים מזווגים. ודא שהרשאת הבלוטות' אושרה ושהרכב מזווג.",
+                            fontSize = 11.sp, color = Lux.brass, lineHeight = 16.sp
+                        )
+                    } else {
+                        CollapsibleHeader(
+                            title = "מכשירים",
+                            summary = if (draft.bluetooth.addresses.isEmpty()) "לא נבחר מכשיר"
+                                      else "${draft.bluetooth.addresses.size} מתוך ${devices.size} נבחרו",
+                            open = btOpen,
+                            accent = color
+                        ) { btOpen = !btOpen }
+
+                        if (btOpen) devices.forEach { dev ->
+                            val on = draft.bluetooth.addresses.contains(dev.address)
+                            Row(
+                                Modifier.fillMaxWidth()
+                                    .background(Lux.bg, RoundedCornerShape(12.dp))
+                                    .border(
+                                        1.dp,
+                                        if (on) color.copy(alpha = 0.5f) else Lux.line,
+                                        RoundedCornerShape(12.dp)
+                                    )
+                                    .clickable {
+                                        val a = draft.bluetooth.addresses
+                                        draft = draft.copy(
+                                            bluetooth = draft.bluetooth.copy(
+                                                addresses = if (on) a - dev.address else a + dev.address
+                                            )
+                                        )
+                                    }
+                                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(dev.name, fontSize = 13.sp, color = Lux.text)
+                                    Text(dev.address, fontSize = 10.sp, color = Lux.faint)
+                                }
+                                if (on) Text("נבחר", fontSize = 11.sp, color = color)
+                            }
+                        }
+
+                        Text(
+                            "חיבור מדליק את המצב, וניתוק מחזיר אותו ללוח הזמנים.",
+                            fontSize = 10.sp, color = Lux.faint
+                        )
+                    }
                 }
 
                 // ── יומן ──
@@ -956,12 +1029,24 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     SectionHeader(Icons.Outlined.PersonAdd, "מי בכל זאת יצלצל", top = 14)
                     SegmentedRow(
                         listOf(
-                            "כל אנשי הקשר" to ContactPolicy.ALL,
-                            "רשימה נבחרת" to ContactPolicy.LIST,
+                            "כולם" to ContactPolicy.ALL,
+                            "מועדפים" to ContactPolicy.FAVORITES,
+                            "רשימה" to ContactPolicy.LIST,
                             "אף אחד" to ContactPolicy.NONE
                         ),
                         draft.call.contactPolicy, color
                     ) { draft = draft.copy(call = draft.call.copy(contactPolicy = it)) }
+
+                    if (draft.call.contactPolicy == ContactPolicy.FAVORITES) {
+                        val favs = remember { Contacts.favorites(ctx) }
+                        Text(
+                            if (favs.isEmpty())
+                                "לא נמצאו אנשי קשר מועדפים. סמן אותם בכוכב באפליקציית אנשי הקשר."
+                            else "${favs.size} אנשי קשר מסומנים בכוכב יעברו. הרשימה מתעדכנת לבד.",
+                            fontSize = 11.sp, color = if (favs.isEmpty()) Lux.brass else Lux.faint,
+                            lineHeight = 16.sp
+                        )
+                    }
 
                     if (draft.call.contactPolicy == ContactPolicy.LIST) {
                         var showPicker by remember { mutableStateOf(false) }

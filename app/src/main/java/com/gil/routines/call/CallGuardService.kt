@@ -48,6 +48,9 @@ class CallGuardService : CallScreeningService() {
             ContactPolicy.ALL -> if (isContact(number)) {
                 log(number, mode.name, "צלצל — איש קשר", false); respondAllow(details); return
             }
+            ContactPolicy.FAVORITES -> if (isFavorite(number)) {
+                log(number, mode.name, "צלצל — איש קשר מועדף", false); respondAllow(details); return
+            }
             ContactPolicy.LIST -> {
                 val key = normalizeNumber(number)
                 val hit = mode.call.allowed.firstOrNull { it.key == key && it.key.isNotBlank() }
@@ -112,6 +115,16 @@ class CallGuardService : CallScreeningService() {
             .onSuccess { CallAttemptLog.markSmsSent(this, number) }
             .onFailure { Log.w(TAG, "שליחת ההודעה נכשלה", it) }
             .isSuccess
+    }
+
+    /** מועדף = מסומן בכוכב באפליקציית אנשי הקשר */
+    private fun isFavorite(number: String): Boolean {
+        if (!hasPermission(Manifest.permission.READ_CONTACTS)) return false
+        val uri = Uri.withAppendedPath(ContactsContract.PhoneLookup.CONTENT_FILTER_URI, Uri.encode(number))
+        return runCatching {
+            contentResolver.query(uri, arrayOf(ContactsContract.PhoneLookup.STARRED), null, null, null)
+                ?.use { it.moveToFirst() && it.getInt(0) == 1 } ?: false
+        }.getOrDefault(false)
     }
 
     /** מספרים מגיעים בפורמטים שונים, ולכן PhoneLookup ולא השוואת מחרוזות */

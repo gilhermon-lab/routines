@@ -59,6 +59,17 @@ object Permissions {
             )
         ),
         PermItem(
+            id = "bt",
+            title = "בלוטות'",
+            subtitle = "הרשאה רגילה",
+            unlocks = "הפעלת מצב בחיבור למערכת הרכב",
+            isGranted = { ctx ->
+                android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.S ||
+                    granted(ctx, Manifest.permission.BLUETOOTH_CONNECT)
+            },
+            runtimePermissions = arrayOf(Manifest.permission.BLUETOOTH_CONNECT)
+        ),
+        PermItem(
             id = "calendar",
             title = "קריאת היומן",
             subtitle = "הרשאה רגילה",

@@ -7,7 +7,7 @@ import org.json.JSONObject
 enum class CallHandling { REJECT, SILENCE }
 
 /** מי רשאי לצלצל למרות שהמצב פעיל */
-enum class ContactPolicy { ALL, LIST, NONE }
+enum class ContactPolicy { ALL, FAVORITES, LIST, NONE }
 
 /** איש קשר ברשימת ההיתר. השם נשמר לתצוגה בלבד; ההשוואה על המספר. */
 data class AllowedContact(val name: String, val number: String) {
@@ -76,6 +76,13 @@ data class ScreenConfig(
     val endOnAlarm: Boolean = false
 )
 
+/** טריגר חיבור: המצב נדלק כשמתחברים למכשיר בלוטות' מסוים, למשל מערכת הרכב */
+data class BtTrigger(
+    val enabled: Boolean = false,
+    /** כתובות MAC של מכשירים מזווגים */
+    val addresses: Set<String> = emptySet()
+)
+
 /** דקות מחצות, 0..1439 — מאפשר דיוק של דקה ולא רק שעות עגולות */
 typealias MinuteOfDay = Int
 
@@ -91,6 +98,9 @@ data class Mode(
     val actions: Set<String> = emptySet(),
     val call: CallConfig = CallConfig(),
     val calendar: CalendarTrigger = CalendarTrigger(),
+    val bluetooth: BtTrigger = BtTrigger(),
+    /** האם לוח הזמנים בכלל רלוונטי. בנהיגה, למשל, אין שעות קבועות. */
+    val useSchedule: Boolean = true,
     val screen: ScreenConfig = ScreenConfig(),
     /**
      * עקיפה ידנית של לוח הזמנים.
@@ -111,7 +121,8 @@ data class Mode(
      */
     fun isActiveAt(minuteOfDay: MinuteOfDay, dayOfWeek: Int): Boolean {
         manualOverride?.let { return it }          // עקיפה ידנית גוברת על הכל
-        if (!enabled || !coversMinute(minuteOfDay)) return false
+        if (!enabled || !useSchedule) return false
+        if (!coversMinute(minuteOfDay)) return false
         val owningDay = if (start <= end || minuteOfDay >= start) dayOfWeek else prevDay(dayOfWeek)
         return days.contains(owningDay)
     }
@@ -139,6 +150,9 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
     put("end", end)
     put("days", JSONArray(days.toList()))
     put("actions", JSONArray(actions.toList()))
+    put("useSchedule", useSchedule)
+    put("btEnabled", bluetooth.enabled)
+    put("btAddrs", JSONArray(bluetooth.addresses.toList()))
     put("calEnabled", calendar.enabled)
     put("calIds", JSONArray(calendar.calendarIds.toList()))
     put("scr", JSONObject().apply {
@@ -197,6 +211,13 @@ fun modeFromJson(o: JSONObject): Mode {
                 endOnAlarm = sc.optBoolean("endAlarm", false)
             )
         },
+        useSchedule = o.optBoolean("useSchedule", true),
+        bluetooth = BtTrigger(
+            enabled = o.optBoolean("btEnabled", false),
+            addresses = (o.optJSONArray("btAddrs") ?: JSONArray()).let { arr ->
+                (0 until arr.length()).map { arr.getString(it) }.toSet()
+            }
+        ),
         calendar = CalendarTrigger(
             enabled = o.optBoolean("calEnabled", false),
             calendarIds = (o.optJSONArray("calIds") ?: JSONArray()).let { arr ->

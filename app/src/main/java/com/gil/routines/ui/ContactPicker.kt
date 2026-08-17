@@ -12,14 +12,21 @@ import com.gil.routines.data.normalizeNumber
  */
 object Contacts {
 
-    fun all(ctx: Context): List<AllowedContact> {
+    /** מועדפים מסומנים בכוכב באפליקציית אנשי הקשר */
+    fun favorites(ctx: Context): List<AllowedContact> = query(ctx, starredOnly = true)
+
+    fun all(ctx: Context): List<AllowedContact> = query(ctx, starredOnly = false)
+
+    private fun query(ctx: Context, starredOnly: Boolean): List<AllowedContact> {
         val cols = arrayOf(
             ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME,
             ContactsContract.CommonDataKinds.Phone.NUMBER
         )
         return runCatching {
             ctx.contentResolver.query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI, cols, null, null,
+                ContactsContract.CommonDataKinds.Phone.CONTENT_URI, cols,
+                if (starredOnly) "${ContactsContract.CommonDataKinds.Phone.STARRED}=1" else null,
+                null,
                 "${ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME} ASC"
             )?.use { c ->
                 val seen = HashSet<String>()
