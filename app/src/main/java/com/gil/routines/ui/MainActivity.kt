@@ -1140,6 +1140,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                                 append(if (draft.call.sendSms) ", ותישלח ההודעה שלמעלה." else ", בלי הודעה.")
                                 when (draft.call.contactPolicy) {
                                     ContactPolicy.ALL -> append(" אנשי קשר יצלצלו כרגיל.")
+                                    ContactPolicy.FAVORITES -> append(" אנשי קשר מועדפים יצלצלו.")
                                     ContactPolicy.LIST -> append(
                                         if (draft.call.allowed.isEmpty()) " אף אחד לא יעבור — הרשימה ריקה."
                                         else " ${draft.call.allowed.size} אנשי קשר ברשימה יעברו."
