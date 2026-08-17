@@ -686,7 +686,53 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                 }
                 }
 
-                // ── חיבור לרכב ──
+                // ── רכב ──
+                SectionHeader(Icons.Outlined.DirectionsCar, "רכב", top = 14)
+
+                ToggleRow("להפעיל מצב רכב של אנדרואיד", draft.carMode) {
+                    draft = draft.copy(carMode = it)
+                }
+                if (draft.carMode) {
+                    Text(
+                        "בחלק מהמכשירים זה מפעיל את ממשק הנהיגה המובנה, ובאחרים לא קורה כלום. " +
+                            "מה שקרה בפועל נרשם ב\"בדיקת מערכת\".",
+                        fontSize = 11.sp, color = Lux.faint, lineHeight = 16.sp
+                    )
+                }
+
+                var showApps by remember { mutableStateOf(false) }
+                if (showApps) {
+                    AppPickerDialog(
+                        accent = color,
+                        onDismiss = { showApps = false },
+                        onPick = { app ->
+                            draft = draft.copy(
+                                launchPackage = app?.packageName,
+                                launchLabel = app?.label
+                            )
+                            showApps = false
+                        }
+                    )
+                }
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(Lux.bg, RoundedCornerShape(12.dp))
+                        .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
+                        .clickable { showApps = true }
+                        .padding(horizontal = 12.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text("אפליקציה שתיפתח", fontSize = 13.sp, color = Lux.text)
+                        Text(
+                            draft.launchLabel ?: "לא נבחרה",
+                            fontSize = 11.sp,
+                            color = if (draft.launchLabel != null) color else Lux.faint
+                        )
+                    }
+                    Text("בחירה", fontSize = 12.sp, color = color)
+                }
+
                 SectionHeader(Icons.Outlined.Bluetooth, "חיבור", top = 14)
                 ToggleRow("להפעיל בחיבור לבלוטות'", draft.bluetooth.enabled) {
                     draft = draft.copy(bluetooth = draft.bluetooth.copy(enabled = it))

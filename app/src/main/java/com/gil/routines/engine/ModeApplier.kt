@@ -1,6 +1,8 @@
 package com.gil.routines.engine
 
 import android.app.NotificationManager
+import android.app.UiModeManager
+import android.content.Intent
 import android.content.Context
 import android.media.AudioManager
 import android.provider.Settings
@@ -24,6 +26,8 @@ object ModeApplier {
     private const val SAVED_BRIGHTNESS = "saved_brightness"
     private const val SAVED_BRIGHTNESS_MODE = "saved_brightness_mode"
     private const val SAVED_TIMEOUT = "saved_timeout"
+    private const val OWNS_CAR = "owns_car"
+    private const val ACTIVE_IDS = "active_ids"
     private const val LAST = "last_trace"
 
     fun applyCurrentState(ctx: Context) {
@@ -32,6 +36,8 @@ object ModeApplier {
         val trace = StringBuilder()
         trace.append(if (active.isEmpty()) "אין מצב פעיל" else "פעיל: " + active.joinToString(", ") { it.name })
 
+        applyCarMode(ctx, active.any { it.carMode }, trace)
+        launchApps(ctx, active, trace)
         applyDnd(ctx, wanted.contains(Actions.DND), trace)
         applyMute(ctx, wanted.contains(Actions.MUTE), trace)
 
@@ -54,6 +60,47 @@ object ModeApplier {
             else -> "לא ידוע"
         }
     }.getOrDefault("אין גישה")
+
+    /**
+     * מצב רכב של אנדרואיד. ביצרנים מסוימים זה מדליק את ממשק הנהיגה המובנה,
+     * ובאחרים לא קורה כלום — לכן התוצאה נרשמת ביומן ולא מונחת כמובנת מאליה.
+     */
+    private fun applyCarMode(ctx: Context, want: Boolean, trace: StringBuilder) = runCatching {
+        val um = ctx.getSystemService(UiModeManager::class.java) ?: return@runCatching
+        val owns = prefs(ctx).getBoolean(OWNS_CAR, false)
+        when {
+            want && !owns -> {
+                um.enableCarMode(0)
+                prefs(ctx).edit().putBoolean(OWNS_CAR, true).apply()
+                trace.append(" · מצב רכב הודלק")
+            }
+            !want && owns -> {
+                um.disableCarMode(0)
+                prefs(ctx).edit().putBoolean(OWNS_CAR, false).apply()
+                trace.append(" · מצב רכב כובה")
+            }
+        }
+    }.onFailure {
+        trace.append(" · מצב רכב נכשל")
+        Log.w(TAG, "car mode", it)
+    }
+
+    /** פותח אפליקציה רק ברגע שהמצב נדלק, ולא בכל בדיקה */
+    private fun launchApps(ctx: Context, active: List<com.gil.routines.data.Mode>, trace: StringBuilder) {
+        val prev = prefs(ctx).getStringSet(ACTIVE_IDS, emptySet()) ?: emptySet()
+        val now = active.map { it.id }.toSet()
+        prefs(ctx).edit().putStringSet(ACTIVE_IDS, now).apply()
+
+        active.filter { it.id !in prev }.forEach { m ->
+            val pkg = m.launchPackage ?: return@forEach
+            runCatching {
+                val launch = ctx.packageManager.getLaunchIntentForPackage(pkg) ?: return@runCatching
+                launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                ctx.startActivity(launch)
+                trace.append(" · נפתחה ${m.launchLabel ?: pkg}")
+            }.onFailure { Log.w(TAG, "launch $pkg", it) }
+        }
+    }
 
     private fun applyDnd(ctx: Context, want: Boolean, trace: StringBuilder) = runCatching {
         val nm = ctx.getSystemService(NotificationManager::class.java)

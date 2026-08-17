@@ -82,7 +82,7 @@ object ModeStore {
         ),
         Mode(
             id = "drive", name = "נהיגה", colorArgb = 0xFFD2662BL, enabled = true,
-            useSchedule = false,
+            useSchedule = false, carMode = true,
             bluetooth = BtTrigger(enabled = true),
             start = hm(17, 30), end = hm(18, 15), days = setOf(1, 2, 3, 4, 5),
             actions = setOf(Actions.CALL_GUARD),

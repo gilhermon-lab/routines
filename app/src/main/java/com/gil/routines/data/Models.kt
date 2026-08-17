@@ -101,6 +101,11 @@ data class Mode(
     val bluetooth: BtTrigger = BtTrigger(),
     /** האם לוח הזמנים בכלל רלוונטי. בנהיגה, למשל, אין שעות קבועות. */
     val useSchedule: Boolean = true,
+    /** מצב רכב של אנדרואיד — ביצרנים מסוימים זה מה שמפעיל את ממשק הנהיגה המובנה */
+    val carMode: Boolean = false,
+    /** אפליקציה שתיפתח כשהמצב נדלק, למשל ניווט */
+    val launchPackage: String? = null,
+    val launchLabel: String? = null,
     val screen: ScreenConfig = ScreenConfig(),
     /**
      * עקיפה ידנית של לוח הזמנים.
@@ -151,6 +156,9 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
     put("days", JSONArray(days.toList()))
     put("actions", JSONArray(actions.toList()))
     put("useSchedule", useSchedule)
+    put("carMode", carMode)
+    put("launchPkg", launchPackage ?: JSONObject.NULL)
+    put("launchLabel", launchLabel ?: JSONObject.NULL)
     put("btEnabled", bluetooth.enabled)
     put("btAddrs", JSONArray(bluetooth.addresses.toList()))
     put("calEnabled", calendar.enabled)
@@ -212,6 +220,9 @@ fun modeFromJson(o: JSONObject): Mode {
             )
         },
         useSchedule = o.optBoolean("useSchedule", true),
+        carMode = o.optBoolean("carMode", false),
+        launchPackage = if (o.isNull("launchPkg")) null else o.optString("launchPkg").ifBlank { null },
+        launchLabel = if (o.isNull("launchLabel")) null else o.optString("launchLabel").ifBlank { null },
         bluetooth = BtTrigger(
             enabled = o.optBoolean("btEnabled", false),
             addresses = (o.optJSONArray("btAddrs") ?: JSONArray()).let { arr ->
