@@ -130,6 +130,22 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+/**
+ * אילו מקטעים רלוונטיים לכל סוג מצב.
+ *
+ * לנהיגה אין שעות אלא חיבור לרכב; לישיבה יש יומן ולא לוח זמנים;
+ * לשינה יש מסך והשכמה ואין לה שום קשר לבלוטות'.
+ * מה שלא ברשימה עדיין זמין תחת "כל האפשרויות".
+ */
+fun sectionsFor(modeId: String): Set<String> = when (modeId) {
+    "sleep" -> setOf("schedule", "screen", "calls")
+    "work" -> setOf("schedule", "calendar", "calls")
+    "meeting" -> setOf("calendar", "calls")
+    "drive" -> setOf("bt", "car", "calls")
+    "focus" -> setOf("schedule", "screen", "calls")
+    else -> setOf("schedule", "calls")
+}
+
 /** למה המצב פעיל כרגע — או למה לא */
 data class ModeStatus(
     val live: Boolean,
@@ -552,6 +568,9 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
     // טיוטה מקומית: כל עריכה נוגעת בה בלבד, ורק "שמירה" מחילה אותה על המצב האמיתי.
     // זה גם מה שמנע קודם מהמסך הראשי להציג ערכים ישנים.
     var draft by remember(mode.id) { mutableStateOf(mode) }
+    var showAll by remember(mode.id) { mutableStateOf(false) }
+    val relevant = remember(mode.id) { sectionsFor(mode.id) }
+    fun visible(key: String) = showAll || relevant.contains(key)
     val color = Color(draft.colorArgb.toInt())
     val dirty = draft != mode
 
@@ -626,6 +645,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     draft.manualOverride, color
                 ) { draft = draft.copy(manualOverride = it) }
 
+                if (visible("schedule")) {
                 SectionHeader(Icons.Outlined.Schedule, "מתי", top = 14)
 
                 ToggleRow("לפי שעות קבועות", draft.useSchedule) {
@@ -686,6 +706,9 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                 }
                 }
 
+                }
+
+                if (visible("car")) {
                 // ── רכב ──
                 SectionHeader(Icons.Outlined.DirectionsCar, "רכב", top = 14)
 
@@ -733,6 +756,9 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     Text("בחירה", fontSize = 12.sp, color = color)
                 }
 
+                }
+
+                if (visible("bt")) {
                 SectionHeader(Icons.Outlined.Bluetooth, "חיבור", top = 14)
                 ToggleRow("להפעיל בחיבור לבלוטות'", draft.bluetooth.enabled) {
                     draft = draft.copy(bluetooth = draft.bluetooth.copy(enabled = it))
@@ -791,6 +817,9 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     }
                 }
 
+                }
+
+                if (visible("calendar")) {
                 // ── יומן ──
                 SectionHeader(Icons.Outlined.CalendarMonth, "יומן", top = 14)
 
@@ -1034,6 +1063,8 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     }
                 }
 
+                }
+
                 SectionHeader(Icons.Outlined.PhoneCallback, "שיחות נכנסות", top = 14)
 
                 ToggleRow("סינון שיחות במצב הזה", draft.actions.contains(Actions.CALL_GUARD)) {
@@ -1203,6 +1234,7 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     }
                 }
 
+                if (visible("screen")) {
                 // ── מסך ──
                 SectionHeader(Icons.Outlined.Brightness4, "מסך", top = 14)
 
@@ -1276,12 +1308,38 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     )
                 }
 
+                }
+
                 SectionHeader(Icons.Outlined.Tune, "פעולות נוספות", top = 14)
                 ToggleRow("נא לא להפריע", draft.actions.contains(Actions.DND)) {
                     draft = draft.copy(actions = if (it) draft.actions + Actions.DND else draft.actions - Actions.DND)
                 }
                 ToggleRow("השתקת צלצול", draft.actions.contains(Actions.MUTE)) {
                     draft = draft.copy(actions = if (it) draft.actions + Actions.MUTE else draft.actions - Actions.MUTE)
+                }
+
+                // כל מה שלא רלוונטי למצב הזה עדיין זמין, רק לא בחזית
+                Spacer(Modifier.height(10.dp))
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(Lux.surfaceHi, RoundedCornerShape(12.dp))
+                        .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
+                        .clickable { showAll = !showAll }
+                        .padding(horizontal = 12.dp, vertical = 11.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(
+                            if (showAll) "כל האפשרויות" else "אפשרויות נוספות",
+                            fontSize = 13.sp, color = Lux.text
+                        )
+                        Text(
+                            if (showAll) "מוצגים גם מקטעים שאינם אופייניים למצב הזה"
+                            else "יומן, חיבור לרכב, מסך ועוד — לפי הצורך",
+                            fontSize = 11.sp, color = Lux.faint
+                        )
+                    }
+                    Text(if (showAll) "הסתרה" else "הצגה", fontSize = 12.sp, color = color)
                 }
                 Spacer(Modifier.height(4.dp))
 

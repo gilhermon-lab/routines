@@ -68,6 +68,7 @@ object ModeStore {
         ),
         Mode(
             id = "meeting", name = "ישיבה", colorArgb = 0xFFB8860BL, enabled = true,
+            useSchedule = false,
             start = hm(10, 0), end = hm(11, 30), days = setOf(1, 3, 5),
             actions = setOf(Actions.DND, Actions.CALL_GUARD, Actions.MUTE),
             call = CallConfig(
