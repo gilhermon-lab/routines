@@ -5,6 +5,7 @@ import android.content.ContentUris
 import android.content.ContentValues
 import android.content.Context
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.provider.CalendarContract
 import androidx.core.content.ContextCompat
 
@@ -44,19 +45,52 @@ object CalendarAdmin {
         return ok
     }
 
-    /** מחיקה סופית. אם אפליקציית המקור עדיין מסנכרנת, היא עלולה ליצור אותם מחדש. */
-    fun delete(ctx: Context, ids: Set<Long>): Pair<Int, Int> {
-        if (!canWrite(ctx)) return 0 to ids.size
+    /**
+     * מחיקה סופית.
+     *
+     * ספק היומן של אנדרואיד מרשה למחוק יומנים רק למי שמזוהה כמתאם סנכרון,
+     * ולכן מוסיפים את CALLER_IS_SYNCADAPTER יחד עם פרטי החשבון.
+     * בלי זה המחיקה נכשלת בשקט וזה נראה כאילו כלום לא קרה.
+     */
+    fun delete(ctx: Context, calendars: List<CalendarInfo>): Pair<Int, Int> {
+        if (!canWrite(ctx)) return 0 to calendars.size
         var ok = 0
         var failed = 0
-        ids.forEach { id ->
-            val uri = ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, id)
-            runCatching { ctx.contentResolver.delete(uri, null, null) }
-                .onSuccess { if (it > 0) ok++ else failed++ }
-                .onFailure { failed++ }
+
+        calendars.forEach { cal ->
+            val asSync = runCatching {
+                ctx.contentResolver.delete(
+                    syncAdapterUri(cal.account, cal.type),
+                    "${CalendarContract.Calendars._ID}=?",
+                    arrayOf(cal.id.toString())
+                )
+            }.getOrDefault(0)
+
+            if (asSync > 0) { ok++; return@forEach }
+
+            // נפילה אחורה לניסיון רגיל, ליומנים מקומיים שאינם שייכים לחשבון
+            val plain = runCatching {
+                ctx.contentResolver.delete(
+                    ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, cal.id),
+                    null, null
+                )
+            }.getOrDefault(0)
+
+            if (plain > 0) ok++ else failed++
         }
         return ok to failed
     }
+
+    private fun syncAdapterUri(account: String, type: String): Uri =
+        CalendarContract.Calendars.CONTENT_URI.buildUpon()
+            .appendQueryParameter(CalendarContract.CALLER_IS_SYNCADAPTER, "true")
+            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_NAME, account)
+            .appendQueryParameter(CalendarContract.Calendars.ACCOUNT_TYPE, type)
+            .build()
+
+    /** כמה יומנים נשארו לחשבון — לאימות אחרי מחיקה */
+    fun countFor(ctx: Context, account: String): Int =
+        CalendarReader.calendars(ctx).count { it.account == account }
 
     /**
      * יומנים שנראים כפולים: אותו שם ואותו חשבון.

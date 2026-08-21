@@ -168,7 +168,24 @@ fun CalendarAdminDialog(onDismiss: () -> Unit) {
                     ) { Text("מחיקה", fontSize = 13.sp) }
                 }
 
-                Spacer(Modifier.height(8.dp))
+                Spacer(Modifier.height(4.dp))
+                TextButton(
+                    onClick = {
+                        runCatching {
+                            ctx.startActivity(
+                                android.content.Intent(android.provider.Settings.ACTION_SYNC_SETTINGS)
+                                    .addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK)
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text(
+                        "פתיחת הגדרות החשבונות — לכיבוי סנכרון היומן במקור",
+                        color = Lux.brass, fontSize = 12.sp
+                    )
+                }
+
                 TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
                     Text("סגירה", color = Lux.muted, fontSize = 13.sp)
                 }
@@ -190,8 +207,16 @@ fun CalendarAdminDialog(onDismiss: () -> Unit) {
             },
             confirmButton = {
                 TextButton(onClick = {
-                    val (ok, failed) = CalendarAdmin.delete(ctx, selected.toSet())
-                    note = "$ok נמחקו" + if (failed > 0) ", $failed נכשלו" else ""
+                    val chosen = groups.values.flatten().filter { selected.contains(it.id) }
+                    val (ok, failed) = CalendarAdmin.delete(ctx, chosen)
+                    val left = chosen.map { it.account }.distinct()
+                        .sumOf { CalendarAdmin.countFor(ctx, it) }
+                    note = buildString {
+                        append("$ok נמחקו")
+                        if (failed > 0) append(", $failed נכשלו")
+                        append(" · נשארו $left בחשבונות האלה")
+                        if (failed > 0) append("\nאם הכל נכשל, כבה את סנכרון היומן של החשבון בהגדרות המכשיר.")
+                    }
                     selected.clear(); confirmDelete = false; reload++
                 }) { Text("מחיקה", color = Lux.brass) }
             },
