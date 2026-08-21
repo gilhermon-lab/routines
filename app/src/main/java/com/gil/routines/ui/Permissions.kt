@@ -73,9 +73,26 @@ object Permissions {
             id = "calendar",
             title = "קריאת היומן",
             subtitle = "הרשאה רגילה",
-            unlocks = "הפעלת מצב לפי אירועי Outlook ויומנים אחרים",
+            unlocks = "הפעלת מצב לפי אירועים · ניהול היומנים במכשיר",
             isGranted = { ctx -> granted(ctx, Manifest.permission.READ_CALENDAR) },
-            runtimePermissions = arrayOf(Manifest.permission.READ_CALENDAR)
+            runtimePermissions = arrayOf(
+                Manifest.permission.READ_CALENDAR,
+                Manifest.permission.WRITE_CALENDAR
+            )
+        ),
+        PermItem(
+            id = "summary",
+            title = "התראות ויומן שיחות",
+            subtitle = "הרשאות רגילות",
+            unlocks = "סיכום מי ניסה להשיג בסיום מצב",
+            isGranted = { ctx ->
+                val notif = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU ||
+                    granted(ctx, Manifest.permission.POST_NOTIFICATIONS)
+                notif && granted(ctx, Manifest.permission.READ_CALL_LOG)
+            },
+            runtimePermissions = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
+                arrayOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_CALL_LOG)
+            else arrayOf(Manifest.permission.READ_CALL_LOG)
         ),
         PermItem(
             id = "dnd",

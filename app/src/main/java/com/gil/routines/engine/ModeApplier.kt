@@ -28,6 +28,7 @@ object ModeApplier {
     private const val SAVED_TIMEOUT = "saved_timeout"
     private const val OWNS_CAR = "owns_car"
     private const val ACTIVE_IDS = "active_ids"
+    private const val SESSION_PREFIX = "session_start_"
     private const val LAST = "last_trace"
 
     fun applyCurrentState(ctx: Context) {
@@ -85,11 +86,33 @@ object ModeApplier {
         Log.w(TAG, "car mode", it)
     }
 
-    /** פותח אפליקציה רק ברגע שהמצב נדלק, ולא בכל בדיקה */
+    /**
+     * מעברים בין מצבים: פתיחת אפליקציה בהתחלה, וסיכום ניסיונות בסיום.
+     * שניהם חייבים לקרות פעם אחת בלבד ולא בכל בדיקה תקופתית.
+     */
     private fun launchApps(ctx: Context, active: List<com.gil.routines.data.Mode>, trace: StringBuilder) {
         val prev = prefs(ctx).getStringSet(ACTIVE_IDS, emptySet()) ?: emptySet()
         val now = active.map { it.id }.toSet()
         prefs(ctx).edit().putStringSet(ACTIVE_IDS, now).apply()
+
+        // מצבים שהתחילו — שומרים את רגע ההתחלה
+        active.filter { it.id !in prev }.forEach { m ->
+            prefs(ctx).edit().putLong(SESSION_PREFIX + m.id, System.currentTimeMillis()).apply()
+        }
+
+        // מצבים שהסתיימו — מציגים מי ניסה להשיג בזמן הזה
+        val all = com.gil.routines.data.ModeStore.load(ctx)
+        prev.filter { it !in now }.forEach { id ->
+            val start = prefs(ctx).getLong(SESSION_PREFIX + id, 0L)
+            prefs(ctx).edit().remove(SESSION_PREFIX + id).apply()
+            val mode = all.find { it.id == id } ?: return@forEach
+            val silencing = mode.actions.contains(Actions.CALL_GUARD) || mode.actions.contains(Actions.DND)
+            if (start > 0L && silencing) {
+                runCatching { MissedSummary.notifyForWindow(ctx, mode.name, start) }
+                    .onFailure { Log.w(TAG, "summary", it) }
+                trace.append(" · סיכום ל${mode.name}")
+            }
+        }
 
         active.filter { it.id !in prev }.forEach { m ->
             val pkg = m.launchPackage ?: return@forEach

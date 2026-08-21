@@ -63,6 +63,7 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.gil.routines.BuildConfig
+import com.gil.routines.calendar.CalendarAdmin
 import com.gil.routines.calendar.CalendarReader
 import com.gil.routines.call.CallLogStore
 import com.gil.routines.data.*
@@ -834,7 +835,12 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                             fontSize = 11.sp, color = Lux.brass, lineHeight = 17.sp
                         )
                     } else {
-                        val cals = remember { CalendarReader.calendars(ctx) }
+                        // יומנים מוסתרים לא מוצגים כאן, וכפילויות שם+חשבון מסוננות
+                        val cals = remember {
+                            val all = CalendarReader.calendars(ctx).filter { it.visible }
+                            val dups = CalendarAdmin.duplicates(all).map { it.id }.toSet()
+                            all.filterNot { dups.contains(it.id) }
+                        }
                         Text(
                             "נספרים אירועים שאינם יום שלם ושלא דחית. הסינון נעשה לפי המילים שלמטה ולפי הבחירה הידנית.",
                             fontSize = 11.sp, color = Lux.faint, lineHeight = 17.sp
@@ -1420,6 +1426,17 @@ fun SettingsSheet(
                 "אוטומטי: בהיר עד 19:00, כהה אחריו, וכהה בכל מצב שמחשיך את המסך.",
                 fontSize = 11.sp, color = Lux.faint, lineHeight = 16.sp
             )
+
+            var showCalAdmin by remember { mutableStateOf(false) }
+            if (showCalAdmin) {
+                CalendarAdminDialog(onDismiss = { showCalAdmin = false })
+            }
+
+            SectionHeader(Icons.Outlined.CalendarMonth, "יומנים", top = 12)
+            TriggerRow(
+                Icons.Outlined.CalendarMonth, "ניהול יומנים",
+                "הסתרה, החזרה ומחיקה של יומנים מיותרים"
+            ) { showCalAdmin = true }
 
             SectionHeader(Icons.Outlined.Security, "מערכת", top = 12)
             PermissionsTrigger(grantedCount) { onPermissions() }
