@@ -52,8 +52,16 @@ object CalendarAdmin {
      * ולכן מוסיפים את CALLER_IS_SYNCADAPTER יחד עם פרטי החשבון.
      * בלי זה המחיקה נכשלת בשקט וזה נראה כאילו כלום לא קרה.
      */
+    /** הסיבה לכישלון האחרון, לתצוגה למשתמש */
+    var lastError: String? = null
+        private set
+
     fun delete(ctx: Context, calendars: List<CalendarInfo>): Pair<Int, Int> {
-        if (!canWrite(ctx)) return 0 to calendars.size
+        lastError = null
+        if (!canWrite(ctx)) {
+            lastError = "אין הרשאת כתיבה ליומן"
+            return 0 to calendars.size
+        }
         var ok = 0
         var failed = 0
 
@@ -64,7 +72,8 @@ object CalendarAdmin {
                     "${CalendarContract.Calendars._ID}=?",
                     arrayOf(cal.id.toString())
                 )
-            }.getOrDefault(0)
+            }.onFailure { lastError = it.javaClass.simpleName + ": " + (it.message ?: "") }
+                .getOrDefault(0)
 
             if (asSync > 0) { ok++; return@forEach }
 
@@ -74,9 +83,13 @@ object CalendarAdmin {
                     ContentUris.withAppendedId(CalendarContract.Calendars.CONTENT_URI, cal.id),
                     null, null
                 )
-            }.getOrDefault(0)
+            }.onFailure { lastError = it.javaClass.simpleName + ": " + (it.message ?: "") }
+                .getOrDefault(0)
 
-            if (plain > 0) ok++ else failed++
+            if (plain > 0) ok++ else {
+                failed++
+                if (lastError == null) lastError = "הספק דחה את המחיקה בלי שגיאה"
+            }
         }
         return ok to failed
     }

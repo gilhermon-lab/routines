@@ -215,7 +215,10 @@ fun CalendarAdminDialog(onDismiss: () -> Unit) {
                         append("$ok נמחקו")
                         if (failed > 0) append(", $failed נכשלו")
                         append(" · נשארו $left בחשבונות האלה")
-                        if (failed > 0) append("\nאם הכל נכשל, כבה את סנכרון היומן של החשבון בהגדרות המכשיר.")
+                        if (failed > 0) {
+                            append("\nסיבה: " + (CalendarAdmin.lastError ?: "לא ידועה"))
+                            append("\nנסה הסתרה במקום, או כבה את סנכרון היומן של החשבון.")
+                        }
                     }
                     selected.clear(); confirmDelete = false; reload++
                 }) { Text("מחיקה", color = Lux.brass) }

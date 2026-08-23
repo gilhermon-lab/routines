@@ -83,6 +83,16 @@ data class BtTrigger(
     val addresses: Set<String> = emptySet()
 )
 
+/** הקראה קולית של הודעות — נועד בעיקר לנהיגה */
+data class VoiceConfig(
+    val readSms: Boolean = false,
+    val readApps: Boolean = false,
+    /** אילו אפליקציות מוקראות. ריק = ברירת המחדל שלמטה. */
+    val packages: Set<String> = setOf("com.whatsapp", "org.telegram.messenger"),
+    /** להקריא את שם השולח לפני תוכן ההודעה */
+    val includeSender: Boolean = true
+)
+
 /** דקות מחצות, 0..1439 — מאפשר דיוק של דקה ולא רק שעות עגולות */
 typealias MinuteOfDay = Int
 
@@ -99,6 +109,7 @@ data class Mode(
     val call: CallConfig = CallConfig(),
     val calendar: CalendarTrigger = CalendarTrigger(),
     val bluetooth: BtTrigger = BtTrigger(),
+    val voice: VoiceConfig = VoiceConfig(),
     /** האם לוח הזמנים בכלל רלוונטי. בנהיגה, למשל, אין שעות קבועות. */
     val useSchedule: Boolean = true,
     /** מצב רכב של אנדרואיד — ביצרנים מסוימים זה מה שמפעיל את ממשק הנהיגה המובנה */
@@ -159,6 +170,10 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
     put("carMode", carMode)
     put("launchPkg", launchPackage ?: JSONObject.NULL)
     put("launchLabel", launchLabel ?: JSONObject.NULL)
+    put("voiceSms", voice.readSms)
+    put("voiceApps", voice.readApps)
+    put("voiceSender", voice.includeSender)
+    put("voicePkgs", JSONArray(voice.packages.toList()))
     put("btEnabled", bluetooth.enabled)
     put("btAddrs", JSONArray(bluetooth.addresses.toList()))
     put("calEnabled", calendar.enabled)
@@ -223,6 +238,15 @@ fun modeFromJson(o: JSONObject): Mode {
         carMode = o.optBoolean("carMode", false),
         launchPackage = if (o.isNull("launchPkg")) null else o.optString("launchPkg").ifBlank { null },
         launchLabel = if (o.isNull("launchLabel")) null else o.optString("launchLabel").ifBlank { null },
+        voice = VoiceConfig(
+            readSms = o.optBoolean("voiceSms", false),
+            readApps = o.optBoolean("voiceApps", false),
+            includeSender = o.optBoolean("voiceSender", true),
+            packages = (o.optJSONArray("voicePkgs") ?: JSONArray()).let { arr ->
+                if (arr.length() == 0) VoiceConfig().packages
+                else (0 until arr.length()).map { arr.getString(it) }.toSet()
+            }
+        ),
         bluetooth = BtTrigger(
             enabled = o.optBoolean("btEnabled", false),
             addresses = (o.optJSONArray("btAddrs") ?: JSONArray()).let { arr ->

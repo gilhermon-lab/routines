@@ -73,7 +73,10 @@ object MissedSummary {
         val ours = runCatching {
             CallLogStore.all(ctx)
                 .filter { it.timeMillis >= since }
-                .map { Entry(it.timeMillis, it.number, it.outcome) }
+                .map {
+                    val name = com.gil.routines.ui.PhoneNames.nameFor(ctx, it.number)
+                    Entry(it.timeMillis, name ?: it.number, it.outcome)
+                }
         }.getOrDefault(emptyList())
 
         val system = if (hasPermission(ctx, Manifest.permission.READ_CALL_LOG)) {

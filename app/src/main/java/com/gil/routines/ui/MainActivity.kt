@@ -31,6 +31,7 @@ import androidx.compose.material.icons.outlined.Layers
 import androidx.compose.material.icons.outlined.NotificationsActive
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.PersonAdd
+import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.PhoneCallback
 import androidx.compose.material.icons.outlined.Bluetooth
 import androidx.compose.material.icons.outlined.Brightness4
@@ -757,6 +758,28 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                     Text("בחירה", fontSize = 12.sp, color = color)
                 }
 
+                SectionHeader(Icons.Outlined.RecordVoiceOver, "הקראה", top = 14)
+
+                ToggleRow("להקריא הודעות SMS", draft.voice.readSms) {
+                    draft = draft.copy(voice = draft.voice.copy(readSms = it))
+                }
+                ToggleRow("להקריא הודעות מאפליקציות", draft.voice.readApps) {
+                    draft = draft.copy(voice = draft.voice.copy(readApps = it))
+                }
+                if (draft.voice.readSms || draft.voice.readApps) {
+                    ToggleRow("להקריא את שם השולח", draft.voice.includeSender) {
+                        draft = draft.copy(voice = draft.voice.copy(includeSender = it))
+                    }
+                    Text(
+                        "מוקראות וואטסאפ וטלגרם. ההקראה עוברת למערכת השמע של הרכב אם היא מחוברת.",
+                        fontSize = 11.sp, color = Lux.faint, lineHeight = 16.sp
+                    )
+                    OutlinedButton(
+                        onClick = { com.gil.routines.voice.VoiceReader.speak(ctx, "בדיקת הקראה. הודעה חדשה מדנה.") },
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = color)
+                    ) { Text("בדיקת קול", fontSize = 13.sp) }
+                }
                 }
 
                 if (visible("bt")) {
@@ -1617,15 +1640,29 @@ fun CallLogCard(refreshKey: Int) {
             ) { logOpen = !logOpen }
 
             if (logOpen) events.take(6).forEach { e ->
-                Column {
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text(e.number, fontSize = 14.sp, color = Lux.text)
-                        Text(clock.format(Date(e.timeMillis)), fontSize = 12.sp, color = Lux.faint)
+                val name = remember(e.number) { PhoneNames.nameFor(ctx, e.number) }
+                Row(
+                    Modifier.fillMaxWidth()
+                        .background(Lux.bg, RoundedCornerShape(12.dp))
+                        .border(1.dp, Lux.line, RoundedCornerShape(12.dp))
+                        .clickable { PhoneNames.call(ctx, e.number) }
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(name ?: e.number, fontSize = 14.sp, color = Lux.text)
+                        if (name != null) {
+                            Text(e.number, fontSize = 11.sp, color = Lux.faint)
+                        }
+                        Text(
+                            "${e.outcome} · ${e.modeName}" + if (e.smsSent) " · נשלחה הודעה" else "",
+                            fontSize = 12.sp, color = Lux.muted
+                        )
                     }
-                    Text(
-                        "${e.outcome} · ${e.modeName}" + if (e.smsSent) " · נשלחה הודעה" else "",
-                        fontSize = 12.sp, color = Lux.muted
-                    )
+                    Column(horizontalAlignment = Alignment.End) {
+                        Text(clock.format(Date(e.timeMillis)), fontSize = 12.sp, color = Lux.faint)
+                        Text("חיוג", fontSize = 12.sp, color = Lux.brass)
+                    }
                 }
             }
             if (logOpen) TextButton(onClick = { CallLogStore.clear(ctx); events = emptyList() }) {

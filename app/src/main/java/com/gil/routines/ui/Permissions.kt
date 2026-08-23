@@ -47,7 +47,7 @@ object Permissions {
             id = "sms",
             title = "שליחת הודעות ואנשי קשר",
             subtitle = "הרשאות רגילות",
-            unlocks = "המשוב האוטומטי וחריגת אנשי קשר",
+            unlocks = "משוב אוטומטי, זיהוי אנשי קשר וחיוג חוזר",
             isGranted = { ctx ->
                 granted(ctx, Manifest.permission.SEND_SMS) &&
                     granted(ctx, Manifest.permission.READ_CONTACTS)
@@ -55,8 +55,24 @@ object Permissions {
             runtimePermissions = arrayOf(
                 Manifest.permission.SEND_SMS,
                 Manifest.permission.READ_CONTACTS,
-                Manifest.permission.READ_PHONE_STATE
+                Manifest.permission.READ_PHONE_STATE,
+                Manifest.permission.CALL_PHONE
             )
+        ),
+        PermItem(
+            id = "voice",
+            title = "הקראת הודעות",
+            subtitle = "הרשאת SMS + גישה להתראות",
+            unlocks = "הקראה קולית בנהיגה",
+            isGranted = { ctx ->
+                val sms = granted(ctx, Manifest.permission.RECEIVE_SMS)
+                val listener = android.provider.Settings.Secure.getString(
+                    ctx.contentResolver, "enabled_notification_listeners"
+                )?.contains(ctx.packageName) == true
+                sms && listener
+            },
+            runtimePermissions = arrayOf(Manifest.permission.RECEIVE_SMS),
+            intentFor = { Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS") }
         ),
         PermItem(
             id = "bt",
