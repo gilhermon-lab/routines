@@ -100,15 +100,20 @@ object Permissions {
             id = "summary",
             title = "התראות ויומן שיחות",
             subtitle = "הרשאות רגילות",
-            unlocks = "סיכום מי ניסה להשיג בסיום מצב",
+            unlocks = "סיכום בסיום מצב · שיחות חסומות ביומן הטלפון",
             isGranted = { ctx ->
                 val notif = android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU ||
                     granted(ctx, Manifest.permission.POST_NOTIFICATIONS)
-                notif && granted(ctx, Manifest.permission.READ_CALL_LOG)
+                notif && granted(ctx, Manifest.permission.READ_CALL_LOG) &&
+                    granted(ctx, Manifest.permission.WRITE_CALL_LOG)
             },
             runtimePermissions = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU)
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS, Manifest.permission.READ_CALL_LOG)
-            else arrayOf(Manifest.permission.READ_CALL_LOG)
+                arrayOf(
+                    Manifest.permission.POST_NOTIFICATIONS,
+                    Manifest.permission.READ_CALL_LOG,
+                    Manifest.permission.WRITE_CALL_LOG
+                )
+            else arrayOf(Manifest.permission.READ_CALL_LOG, Manifest.permission.WRITE_CALL_LOG)
         ),
         PermItem(
             id = "dnd",

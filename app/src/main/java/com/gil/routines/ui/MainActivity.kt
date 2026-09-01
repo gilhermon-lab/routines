@@ -1132,6 +1132,17 @@ fun ModeSheet(mode: Mode, onCancel: () -> Unit, onSave: (Mode) -> Unit) {
                         )
                     }
 
+                    ToggleRow("לרשום ביומן השיחות של הטלפון", draft.call.logAsMissed) {
+                        draft = draft.copy(call = draft.call.copy(logAsMissed = it))
+                    }
+                    if (draft.call.logAsMissed) {
+                        Text(
+                            "אנדרואיד רושם שיחה שנדחתה כ\"חסומה\", והחייגן מסתיר את הסוג הזה. " +
+                                "לכן נרשמת גם רשומה רגילה של שיחה שלא נענתה.",
+                            fontSize = 11.sp, color = Lux.faint, lineHeight = 16.sp
+                        )
+                    }
+
                     SectionHeader(Icons.Outlined.PersonAdd, "מי בכל זאת יצלצל", top = 14)
                     SegmentedRow(
                         listOf(

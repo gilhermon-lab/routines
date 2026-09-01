@@ -38,6 +38,11 @@ data class CallConfig(
     val contactPolicy: ContactPolicy = ContactPolicy.ALL,
     val allowed: List<AllowedContact> = emptyList(),
     val smsCooldownHours: Int = 4,
+    /**
+     * לרשום ביומן השיחות כשיחה שלא נענתה.
+     * אנדרואיד רושם שיחות שנדחו כסוג "חסום", והחייגן מסתיר אותו.
+     */
+    val logAsMissed: Boolean = true,
     val breakthrough: Breakthrough = Breakthrough()
 )
 
@@ -205,6 +210,7 @@ fun Mode.toJson(): JSONObject = JSONObject().apply {
             }
         })
         put("cooldown", call.smsCooldownHours)
+        put("logMissed", call.logAsMissed)
         put("btEnabled", call.breakthrough.enabled)
         put("btAttempts", call.breakthrough.attempts)
         put("btWindow", call.breakthrough.windowMinutes)
@@ -289,6 +295,7 @@ fun modeFromJson(o: JSONObject): Mode {
                 }
             },
             smsCooldownHours = c.optInt("cooldown", 4),
+            logAsMissed = c.optBoolean("logMissed", true),
             breakthrough = Breakthrough(
                 enabled = c.optBoolean("btEnabled", true),
                 attempts = c.optInt("btAttempts", 3),

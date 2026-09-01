@@ -75,6 +75,10 @@ class CallGuardService : CallScreeningService() {
         }
 
         block(details, mode)
+
+        // רשומה גלויה ביומן, כי הרשומה שאנדרואיד יוצר מסומנת "חסום" ומוסתרת
+        if (mode.call.logAsMissed) CallLogWriter.writeMissed(this, number)
+
         val sent = maybeSendSms(mode, number)
         val what = if (mode.call.handling == CallHandling.SILENCE) "הושתקה" else "נדחתה"
         log(number, mode.name, what, sent)
